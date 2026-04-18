@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The repository now has a documented MVP structure plus a runnable local verifier/testing harness with a sequence-based liveness flow, live overlay diagnostics, and QA-oriented calibration tooling.
+The repository now has a documented MVP structure plus a runnable local verifier/testing harness with a sequence-based liveness flow, live overlay diagnostics, modularized frontend/backend code, and QA-oriented calibration tooling.
 
 Validated on April 18, 2026:
 
@@ -16,10 +16,11 @@ Validated on April 18, 2026:
 - live landmark-aware REST + WebSocket smoke test ending in a `verified` terminal event
 - `PYTHONPATH=services/verifier services/verifier/.venv/bin/pytest services/verifier/tests/test_session_flows.py services/verifier/tests/test_logging.py`
 - `PYTHONPATH=services/verifier services/verifier/.venv/bin/pytest services/verifier/tests/test_session_flows.py services/verifier/tests/test_face_quality.py services/verifier/tests/test_calibration_analysis.py`
+- `PYTHONPATH=services/verifier services/verifier/.venv/bin/pytest services/verifier/tests/test_session_flows.py services/verifier/tests/test_liveness_motion_continuity.py`
 - real YOLOv8 face model download and SHA-256 verification
 - official Silent-Face weights copied locally and exported to ONNX
 - real-model sample validation against upstream Silent-Face sample images
-- browser manual flow validation for mirrored preview, session start, multi-step progress, and successful finalize
+- browser manual flow validation for mirrored preview, session start, multi-step progress, successful finalize, and tuned blink/nod responsiveness
 
 ## What Is Implemented
 
@@ -53,6 +54,8 @@ Validated on April 18, 2026:
 - health payload exposes face quality tuning thresholds
 - health payload also exposes motion continuity tuning thresholds
 - health payload also exposes the landmark spot-check mismatch threshold
+- tuned blink / nod thresholds and lower step-frame floor for more natural challenge completion during browser QA
+- backend session/service logic refactored into smaller session modules with clearer responsibilities
 - configurable hold-window pacing for step completion
 - automatic superseding of older active sessions when the same wallet starts a new test session
 - real YOLOv8 face detection model loaded from disk
@@ -68,6 +71,7 @@ Validated on April 18, 2026:
 - client-facing landing page at `/`
 - internal verifier / QA console at `/admin`
 - webcam-based local verifier harness moved into the admin surface
+- admin console refactored into reusable hooks, panel components, and shared admin utilities instead of a monolithic page implementation
 - session creation against the backend
 - WebSocket-driven progress and result rendering
 - manual and auto-assisted challenge triggers for testing
@@ -75,13 +79,14 @@ Validated on April 18, 2026:
   - `full`
   - `liveness_only`
   - `antispoof_only`
-- browser-side MediaPipe Face Landmarker integration
+- browser-side TensorFlow.js face landmarks integration with Turbopack-safe shims around the face-detection runtime
 - landmark telemetry streaming to the verifier
 - on-screen landmark readiness and signal metrics for manual testing
 - mirrored webcam preview so left/right actions match user expectation
 - live webcam overlay with guide box, landmark wireframe, and backend face box
 - sequence timeline showing completed, current, and upcoming steps
 - browser-side `pitch` and `smile_ratio` metrics for nod/smile testing
+- faster browser-to-backend frame shipping for challenge responsiveness
 - split `Pipeline`, `Detection`, and `Signals` logs with collapsed raw JSON detail
 - dedicated `Server Checks` panel for live backend gate visibility during manual QA
 - tuning snapshot panel showing browser assist defaults and backend liveness thresholds
@@ -120,7 +125,7 @@ The one milestone that is still only partially complete is project-native thresh
 - YOLOv8 face detection is using `yolov8n-face-lindevs.onnx`.
 - Silent-Face is using the official upstream `.pth` weights exported locally to ONNX.
 - The anti-spoof runtime had to be aligned with upstream preprocessing: Silent-Face expects float tensors in the `0..255` value range, not normalized `0..1`.
-- Browser-side landmarks are now produced by MediaPipe Face Landmarker and sent to the backend over the existing WebSocket flow.
+- Browser-side landmarks are now produced by TensorFlow.js face landmarks and sent to the backend over the existing WebSocket flow.
 - Backend liveness now consumes landmark-derived EAR, MAR, and yaw-style signals, while preserving metadata overrides for synthetic or manual testing.
 - The testing harness now uses backend-authored multi-step sequences instead of a single randomized challenge.
 - `open_mouth` has been removed from the active testing sequence pool for this phase and replaced with `smile`.
@@ -137,6 +142,8 @@ The one milestone that is still only partially complete is project-native thresh
 - Only `full` mode is eligible for proof minting; QA-only modes are test surfaces, not production proof flows.
 - The backend now blocks replay-like step windows that are too static across consecutive landmark anchor positions, reducing the chance that a still or near-still clip can satisfy a challenge step.
 - The backend now excludes frames whose browser landmark telemetry does not spatially line up with the detected face crop, reducing trust in tampered landmark streams.
+- The browser landmark runtime had to be swapped away from `@mediapipe/tasks-vision` because the local in-app browser repeatedly crashed inside the Tasks runtime; TensorFlow.js now provides the browser landmark layer more reliably in this environment.
+- Manual QA tuning now favors natural single blinks and normal down-and-up nods instead of requiring exaggerated repeated motion.
 - On the upstream sample set, the current real pipeline now behaves as expected:
   - `image_F1.jpg`: fake, failed
   - `image_F2.jpg`: fake, failed
@@ -147,12 +154,15 @@ The one milestone that is still only partially complete is project-native thresh
 
 1. Install local dependencies and boot the verifier plus harness: completed.
 2. Validate the webcam flow end to end: completed for local boot/build, landmark-aware live API smoke, and manual browser verification of the multi-step harness.
-3. Replace mock liveness with real MediaPipe landmark analysis: completed.
+3. Replace mock liveness with real browser landmark analysis: completed.
 4. Add lightweight backend tests around session flows and terminal events: completed and expanded for sequence progression, health tuning visibility, hold-window pacing, and session restart behavior.
 5. Implement face-quality pre-filtering and surface server-side QA diagnostics in the harness: completed.
-6. Capture a few real webcam samples and tune thresholds using project-native data: partially completed.
+6. Refactor the admin harness and verifier session orchestration into smaller reusable modules: completed.
+7. Replace the brittle browser landmark runtime and retune quick challenge actions for manual QA: completed.
+8. Capture a few real webcam samples and tune thresholds using project-native data: partially completed.
    - completed: sample collection format, calibration folder, analyzer script, and live server-side quality visibility
-   - pending: actual human-recorded local sample collection and threshold tuning pass
+   - completed in this session: first-pass blink / nod threshold tuning and faster frame capture cadence for manual QA
+   - pending: broader human-recorded sample collection and threshold tuning pass across devices and lighting conditions
 
 ## New Assets
 
@@ -161,11 +171,20 @@ The one milestone that is still only partially complete is project-native thresh
   - `apps/web/app/admin/page.tsx`
   - `apps/web/app/globals.css`
   - `apps/web/package.json`
+- frontend modularization and browser landmark runtime:
+  - `apps/web/app/admin/_components/`
+  - `apps/web/app/admin/_hooks/`
+  - `apps/web/app/admin/_lib/`
+  - `apps/web/shims/tfjs-face-detection.ts`
+  - `apps/web/next.config.ts`
 - backend landmark-aware liveness:
   - `services/verifier/app/pipeline/liveness.py`
   - `services/verifier/app/pipeline/landmark_metrics.py`
   - `services/verifier/app/pipeline/quality.py`
   - `services/verifier/app/sessions/service.py`
+  - `services/verifier/app/sessions/frame_pipeline.py`
+  - `services/verifier/app/sessions/debug.py`
+  - `services/verifier/app/sessions/finalize.py`
   - `services/verifier/app/core/config.py`
 - tests and calibration:
   - `services/verifier/tests/conftest.py`
@@ -178,7 +197,7 @@ The one milestone that is still only partially complete is project-native thresh
 
 `12-testing-phase-plan.md` is complete enough that the next steps now come from verifier hardening rather than testing-harness construction.
 
-1. Run a focused manual QA pass from `/admin` using all three finalize modes and the `Server Checks` panel:
+1. Run one more focused manual QA pass from `/admin` using all three finalize modes and the `Server Checks` panel, specifically validating blink and nod behavior after the TensorFlow.js landmark swap and faster frame cadence:
    - `full` for end-to-end fused verification
    - `liveness_only` for challenge and gate tuning
    - `antispoof_only` for spoof-sample evaluation
@@ -186,3 +205,4 @@ The one milestone that is still only partially complete is project-native thresh
 3. Use the analyzer script plus the live tuning snapshot to tune liveness, anti-spoof, face-quality, motion continuity, and spot-check thresholds from project-native data.
 4. Expand attack-matrix rows with real labeled spoof attempts so release checks measure pass/fail by attack class against project-native samples.
 5. Continue collecting labeled attack-matrix rows and use the current hardening stack to identify whether a dedicated human-face gate or deepfake head is actually justified next.
+6. Start the next engineering phase from `13-improvement-plan.md`, with the likely next implementation target being either the human-face gate or structured attack-matrix benchmarking.

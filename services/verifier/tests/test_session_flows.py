@@ -108,7 +108,7 @@ def test_health_exposes_tuning_snapshot(client: TestClient) -> None:
     payload = response.json()
 
     assert payload["status"] == "ready"
-    assert payload["tuning"]["minimum_step_frames"] == 4
+    assert payload["tuning"]["minimum_step_frames"] == 2
     assert payload["tuning"]["quality_blur_threshold"] == 45.0
     assert payload["tuning"]["quality_min_face_size"] == 80
     assert payload["tuning"]["turn_yaw_threshold_degrees"] == 18.0
