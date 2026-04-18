@@ -42,6 +42,26 @@ class Settings(BaseSettings):
         default=220.0,
         alias="VERIFIER_QUALITY_MAX_BRIGHTNESS",
     )
+    verifier_human_face_enabled: bool = Field(
+        default=True,
+        alias="VERIFIER_HUMAN_FACE_ENABLED",
+    )
+    verifier_human_face_model_mode: str = Field(
+        default="auto",
+        alias="VERIFIER_HUMAN_FACE_MODEL_MODE",
+    )
+    verifier_human_face_model_id: str | None = Field(
+        default="openai/clip-vit-base-patch32",
+        alias="VERIFIER_HUMAN_FACE_MODEL_ID",
+    )
+    verifier_human_face_threshold: float = Field(
+        default=0.55,
+        alias="VERIFIER_HUMAN_FACE_THRESHOLD",
+    )
+    verifier_human_face_enforce_decision: bool = Field(
+        default=False,
+        alias="VERIFIER_HUMAN_FACE_ENFORCE_DECISION",
+    )
     verifier_landmark_spotcheck_max_center_mismatch_px: float = Field(
         default=96.0,
         alias="VERIFIER_LANDMARK_SPOTCHECK_MAX_CENTER_MISMATCH_PX",

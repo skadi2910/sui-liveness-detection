@@ -10,6 +10,7 @@ from app.pipeline.types import (
     DeepfakeEvaluation,
     FaceDetectionResult,
     FrameInput,
+    HumanFaceEvaluation,
 )
 from app.sessions.models import ChallengeType
 
@@ -20,6 +21,7 @@ def build_session_debug_payload(
     face_detection: FaceDetectionResult | None,
     face_quality: FaceQualityEvaluation | None,
     landmark_spotcheck: LandmarkSpotCheckEvaluation | None,
+    human_face: HumanFaceEvaluation | None,
     antispoof: AntiSpoofEvaluation | None,
     deepfake: DeepfakeEvaluation | None = None,
     antispoof_preview: bool = True,
@@ -82,6 +84,17 @@ def build_session_debug_payload(
                 else None
             ),
             "face_center": landmark_spotcheck.face_center if landmark_spotcheck is not None else None,
+        },
+        "human_face": {
+            "enabled": human_face.enabled if human_face is not None else False,
+            "enforced": human_face.enforced if human_face is not None else False,
+            "passed": human_face.passed if human_face is not None else False,
+            "score": human_face.human_face_score if human_face is not None else None,
+            "top_label": human_face.top_label if human_face is not None else None,
+            "frames_processed": human_face.frames_processed if human_face is not None else 0,
+            "message": (
+                human_face.message if human_face is not None else "Human-face scoring disabled"
+            ),
         },
         "landmarks": {
             "face_detected": bool(latest_frame and latest_frame.landmarks),

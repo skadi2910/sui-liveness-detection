@@ -153,6 +153,9 @@ export function buildCalibrationRecord(params: {
     human: boolean;
     spoof_score: number;
     max_spoof_score?: number | null;
+    human_face_score?: number | null;
+    human_face_message?: string | null;
+    human_face_enabled?: boolean;
     deepfake_score?: number | null;
     max_deepfake_score?: number | null;
     deepfake_frames_processed?: number;
@@ -195,6 +198,9 @@ export function buildCalibrationRecord(params: {
     human: result.human,
     spoof_score: result.spoof_score,
     max_spoof_score: result.max_spoof_score ?? result.spoof_score,
+    human_face_score: result.human_face_score ?? null,
+    human_face_message: result.human_face_message ?? null,
+    human_face_enabled: result.human_face_enabled ?? false,
     deepfake_score: result.deepfake_score ?? null,
     max_deepfake_score: result.max_deepfake_score ?? result.deepfake_score ?? null,
     deepfake_frames_processed: result.deepfake_frames_processed ?? 0,

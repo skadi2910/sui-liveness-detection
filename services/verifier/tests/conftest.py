@@ -16,6 +16,7 @@ from app.pipeline.antispoof import MockAntiSpoofEvaluator
 from app.pipeline.deepfake import MockDeepfakeEvaluator
 from app.pipeline.evidence import EvidenceAssembler
 from app.pipeline.face import MockFaceDetector
+from app.pipeline.human_face import MockHumanFaceEvaluator
 from app.pipeline.liveness import MockLivenessEvaluator
 from app.pipeline.quality import HeuristicFaceQualityEvaluator
 from app.sessions.models import SessionRecord, SessionStatus, WalletCooldown
@@ -105,6 +106,9 @@ def verifier_app(tmp_path) -> FastAPI:
         ),
         antispoof_evaluator=MockAntiSpoofEvaluator(),
         deepfake_evaluator=MockDeepfakeEvaluator(threshold=settings.verifier_deepfake_threshold),
+        human_face_evaluator=MockHumanFaceEvaluator(
+            threshold=settings.verifier_human_face_threshold,
+        ),
         evidence_assembler=EvidenceAssembler(),
         proof_minter=MockProofMinter(minimum_confidence=0.6),
         evidence_store=InMemoryEvidenceStore(),

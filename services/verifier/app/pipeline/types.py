@@ -136,6 +136,18 @@ class DeepfakeEvaluation:
 
 
 @dataclass(slots=True)
+class HumanFaceEvaluation:
+    enabled: bool
+    enforced: bool
+    passed: bool
+    human_face_score: float | None
+    top_label: str | None = None
+    frames_processed: int = 0
+    model_hash: str | None = None
+    message: str = ""
+
+
+@dataclass(slots=True)
 class EvidenceBlob:
     session_id: str
     wallet_address: str

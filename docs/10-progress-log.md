@@ -17,9 +17,11 @@ Validated on April 18, 2026:
 - `PYTHONPATH=services/verifier services/verifier/.venv/bin/pytest services/verifier/tests/test_session_flows.py services/verifier/tests/test_logging.py`
 - `PYTHONPATH=services/verifier services/verifier/.venv/bin/pytest services/verifier/tests/test_session_flows.py services/verifier/tests/test_face_quality.py services/verifier/tests/test_calibration_analysis.py`
 - `PYTHONPATH=services/verifier services/verifier/.venv/bin/pytest services/verifier/tests/test_session_flows.py services/verifier/tests/test_liveness_motion_continuity.py`
+- `PYTHONPATH=services/verifier services/verifier/.venv/bin/pytest services/verifier/tests/test_session_flows.py`
 - real YOLOv8 face model download and SHA-256 verification
 - official Silent-Face weights copied locally and exported to ONNX
 - real-model sample validation against upstream Silent-Face sample images
+- real CLIP human-face model load validation (`openai/clip-vit-base-patch32`)
 - browser manual flow validation for mirrored preview, session start, multi-step progress, successful finalize, and tuned blink/nod responsiveness
 
 ## What Is Implemented
@@ -44,6 +46,7 @@ Validated on April 18, 2026:
 - heuristic face quality gate before liveness and anti-spoof frame acceptance
 - motion continuity check inside the liveness gate when sufficient landmark positions are available
 - server-side landmark spot-check that cross-checks landmark-implied face position against the detected face box
+- human-face gate using a telemetry-first CLIP zero-shot classifier on the detected face crop
 - stateful blink counting across frames
 - metadata fallback path when landmarks are absent
 - server-authored randomized 2- or 3-step challenge sequences
@@ -54,12 +57,14 @@ Validated on April 18, 2026:
 - health payload exposes face quality tuning thresholds
 - health payload also exposes motion continuity tuning thresholds
 - health payload also exposes the landmark spot-check mismatch threshold
+- health payload now also exposes human-face model readiness, runtime, threshold, and enforcement mode
 - tuned blink / nod thresholds and lower step-frame floor for more natural challenge completion during browser QA
 - backend session/service logic refactored into smaller session modules with clearer responsibilities
 - configurable hold-window pacing for step completion
 - automatic superseding of older active sessions when the same wallet starts a new test session
 - real YOLOv8 face detection model loaded from disk
 - real Silent-Face ONNX anti-spoof ensemble loaded from disk
+- real CLIP human-face classifier loaded from Hugging Face
 - mock evidence encryptor, store, and proof minter
 - Dockerfile for local containerized backend runs
 - lightweight backend tests around session lifecycle and terminal events
@@ -97,6 +102,7 @@ Validated on April 18, 2026:
   - presentation-attack metrics
   - deepfake metrics
   - attack note
+- live `Server Checks` now also surfaces the human-face gate state, score, and note
 - tuning snapshot panel showing browser assist defaults and backend liveness thresholds
 - slower end-of-sequence pacing with delayed auto-finalize for better QA UX
 - calibration-row export from completed sessions for NDJSON-based threshold tuning
@@ -129,12 +135,15 @@ Wallet cooldown after terminal sessions has been removed to support heavy repeat
 
 The one milestone that is still only partially complete is project-native threshold tuning: the repo now has the collection/analyzer workflow, but actual real webcam sample capture still requires a human to perform and label sessions. This is calibration work for the pretrained stack, not model retraining.
 
+The verifier now also has a telemetry-first human-face gate. It is model-backed and visible in `/admin`, but it is not enforcing terminal rejection by default yet.
+
 ## Real Model Notes
 
 - YOLOv8 face detection is using `yolov8n-face-lindevs.onnx`.
 - Silent-Face is using the official upstream `.pth` weights exported locally to ONNX.
 - The anti-spoof runtime had to be aligned with upstream preprocessing: Silent-Face expects float tensors in the `0..255` value range, not normalized `0..1`.
 - Browser-side landmarks are now produced by TensorFlow.js face landmarks and sent to the backend over the existing WebSocket flow.
+- The backend now also runs a CLIP-based human-face scorer on the detected face crop and exposes it in live debug, health, admin evaluation endpoints, and terminal result exports.
 - Backend liveness now consumes landmark-derived EAR, MAR, and yaw-style signals, while preserving metadata overrides for synthetic or manual testing.
 - The testing harness now uses backend-authored multi-step sequences instead of a single randomized challenge.
 - `open_mouth` has been removed from the active testing sequence pool for this phase and replaced with `smile`.
@@ -143,6 +152,7 @@ The one milestone that is still only partially complete is project-native thresh
 - The current MVP strategy is pretrained-model-first; local sample capture exists to justify thresholds on project-native devices and conditions.
 - The browser harness can now export completed sessions as NDJSON calibration rows, reducing manual bookkeeping during QA.
 - The browser harness now has a live `Server Checks` panel so manual QA can see the backend face gate, quality gate, liveness step state, anti-spoof scores, and terminal failure reason without inspecting raw JSON.
+- The `Server Checks` panel now also shows human-face telemetry.
 - The frontend is now split into a client-facing landing page and a separate admin/testing console.
 - The admin console now supports four finalize modes for QA:
   - `full`: fused verifier path
@@ -176,6 +186,9 @@ The one milestone that is still only partially complete is project-native thresh
    - completed: sample collection format, calibration folder, analyzer script, and live server-side quality visibility
    - completed in this session: first-pass blink / nod threshold tuning and faster frame capture cadence for manual QA
    - pending: broader human-recorded sample collection and threshold tuning pass across devices and lighting conditions
+9. Add telemetry-first human-face gate and validate the real model path: completed.
+   - completed: backend pipeline wiring, health/debug/result exposure, admin panel visibility, export support, and real CLIP model load
+   - pending: broader non-human benchmark pass before any enforcement decision
 
 ## New Assets
 
@@ -191,8 +204,10 @@ The one milestone that is still only partially complete is project-native thresh
   - `apps/web/shims/tfjs-face-detection.ts`
   - `apps/web/next.config.ts`
 - backend landmark-aware liveness:
+ - backend landmark-aware liveness and human-face gate:
   - `services/verifier/app/pipeline/liveness.py`
   - `services/verifier/app/pipeline/landmark_metrics.py`
+  - `services/verifier/app/pipeline/human_face.py`
   - `services/verifier/app/pipeline/quality.py`
   - `services/verifier/app/sessions/service.py`
   - `services/verifier/app/sessions/frame_pipeline.py`
@@ -215,11 +230,12 @@ The one milestone that is still only partially complete is project-native thresh
    - `liveness_only` for challenge and gate tuning
    - `antispoof_only` for spoof-sample evaluation
    - `deepfake_only` for deepfake-head evaluation
+   - live human-face telemetry on real human inputs and obvious non-human face-like inputs
    - the new same-origin API/WebSocket path when running through the production-parity proxy stack
    - finalize-time deepfake telemetry in `full`, `antispoof_only`, and `deepfake_only`
    - structured attack-analysis output and peak-aware confidence on failed attack sessions
 2. Save labeled calibration rows from real browser webcam sessions in `services/verifier/sample-data/calibration/`.
 3. Expand attack-matrix rows with real labeled spoof attempts so release checks measure pass/fail by attack class against project-native samples.
-4. Use the new admin evaluation endpoints plus the analyzer scripts to tune liveness, anti-spoof, face-quality, motion continuity, spot-check, and deepfake thresholds.
-5. Bring up `docker-compose.prod.yml` once Docker is available locally and verify `/`, `/admin`, `/api/health`, session creation, WebSocket streaming, and finalize through the proxy.
-6. Start the next engineering phase from `13-improvement-plan.md`, with the likely next implementation target being either the human-face gate or structured attack-matrix benchmarking after deepfake telemetry is reviewed.
+4. Use the new admin evaluation endpoints plus the analyzer scripts to tune liveness, anti-spoof, face-quality, motion continuity, spot-check, deepfake, and human-face thresholds.
+5. Continue manual QA and attack-matrix collection on the production-parity Docker stack through `/`, `/admin`, `/api/health`, session creation, WebSocket streaming, and finalize through the proxy.
+6. Start the next engineering phase from `13-improvement-plan.md`, with the likely next implementation target being structured attack-matrix benchmarking and threshold review now that the human-face gate is live in telemetry mode.

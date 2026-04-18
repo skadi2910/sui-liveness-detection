@@ -18,6 +18,7 @@ from app.pipeline.antispoof import AntiSpoofEvaluator
 from app.pipeline.deepfake import DeepfakeEvaluator
 from app.pipeline.evidence import EvidenceAssembler
 from app.pipeline.face import FaceDetector
+from app.pipeline.human_face import HumanFaceEvaluator
 from app.pipeline.landmark_metrics import LandmarkSpotCheckEvaluation
 from app.pipeline.liveness import LivenessEvaluator
 from app.pipeline.quality import FaceQualityEvaluation, FaceQualityEvaluator
@@ -27,6 +28,7 @@ from app.pipeline.types import (
     DeepfakeEvaluation,
     FaceDetectionResult,
     FrameInput,
+    HumanFaceEvaluation,
     LivenessEvaluation,
     SessionStatus as PipelineSessionStatus,
 )
@@ -92,6 +94,7 @@ class VerificationSessionService:
         liveness_evaluator: LivenessEvaluator,
         antispoof_evaluator: AntiSpoofEvaluator,
         deepfake_evaluator: DeepfakeEvaluator,
+        human_face_evaluator: HumanFaceEvaluator,
         evidence_assembler: EvidenceAssembler,
         proof_minter: ProofMinter,
         evidence_store: EvidenceStore,
@@ -107,6 +110,7 @@ class VerificationSessionService:
         self.liveness_evaluator = liveness_evaluator
         self.antispoof_evaluator = antispoof_evaluator
         self.deepfake_evaluator = deepfake_evaluator
+        self.human_face_evaluator = human_face_evaluator
         self.evidence_assembler = evidence_assembler
         self.proof_minter = proof_minter
         self.evidence_store = evidence_store
@@ -148,6 +152,7 @@ class VerificationSessionService:
         frame_bundle = self.frame_evaluator.build_frame_bundle([frame_payload])
         frame, face_detection, face_quality, landmark_spotcheck = frame_bundle[0]
         accepted = face_detection.detected and face_quality.passed and landmark_spotcheck.passed
+        human_face = self._evaluate_human_face(frame, face_detection)
         liveness = self.liveness_evaluator.evaluate(
             self._to_pipeline_challenge(payload.challenge_type),
             [frame] if accepted else [],
@@ -169,6 +174,7 @@ class VerificationSessionService:
             face_detection=self._face_detection_payload(face_detection),
             quality=self._quality_payload(face_quality),
             landmark_spotcheck=self._spotcheck_payload(landmark_spotcheck),
+            human_face=self._human_face_payload(human_face),
             liveness=self._liveness_payload(liveness),
             antispoof=self._antispoof_payload(antispoof, preview=True),
             deepfake=self._deepfake_payload(deepfake),
@@ -200,6 +206,7 @@ class VerificationSessionService:
             usable_face_detections,
             max_samples=self.deepfake_sample_frames,
         )
+        human_face = self._evaluate_human_face_session(usable_frames, usable_face_detections)
         decision = determine_finalization_decision(
             mode=payload.mode,
             face_detected=face_detected,
@@ -234,6 +241,7 @@ class VerificationSessionService:
             face_detection=self._face_detection_payload(face_detections[-1] if face_detections else None),
             quality=self._quality_payload(quality_evaluations[-1] if quality_evaluations else None),
             landmark_spotcheck=self._spotcheck_payload(landmark_spotchecks[-1] if landmark_spotchecks else None),
+            human_face=self._human_face_payload(human_face),
             liveness=self._liveness_payload(liveness),
             antispoof=self._antispoof_payload(antispoof, preview=False),
             deepfake=self._deepfake_payload(deepfake),
@@ -476,6 +484,7 @@ class VerificationSessionService:
             usable_face_detections,
             max_samples=self.deepfake_sample_frames,
         )
+        human_face = self._evaluate_human_face_session(usable_frames, usable_face_detections)
         self.logger.info(
             "anti-spoof verdict",
             context={
@@ -616,6 +625,9 @@ class VerificationSessionService:
             confidence=confidence,
             spoof_score=antispoof.spoof_score,
             max_spoof_score=antispoof.max_spoof_score,
+            human_face_score=human_face.human_face_score,
+            human_face_message=human_face.message,
+            human_face_enabled=human_face.enabled,
             deepfake_score=deepfake.deepfake_score,
             max_deepfake_score=deepfake.max_deepfake_score,
             deepfake_frames_processed=deepfake.frames_processed,
@@ -638,6 +650,7 @@ class VerificationSessionService:
             face_detection=face_detections[-1] if face_detections else None,
             face_quality=quality_evaluations[-1] if quality_evaluations else None,
             landmark_spotcheck=landmark_spotchecks[-1] if landmark_spotchecks else None,
+            human_face=human_face,
             antispoof=antispoof,
             deepfake=deepfake,
             antispoof_preview=False,
@@ -659,6 +672,7 @@ class VerificationSessionService:
                 "confidence": confidence,
                 "spoof_score": antispoof.spoof_score,
                 "deepfake_score": deepfake.deepfake_score,
+                "human_face_score": human_face.human_face_score,
                 "failure_reason": failure_reason,
                 "attack_family": attack_analysis["suspected_attack_family"],
             },
@@ -668,10 +682,12 @@ class VerificationSessionService:
     async def get_health(self) -> HealthResponse:
         redis_ok = await self.store.ping()
         deepfake_ready = (not self.deepfake_evaluator.enabled) or self.deepfake_evaluator.models_ready
+        human_face_ready = (not self.human_face_evaluator.enabled) or self.human_face_evaluator.models_ready
         models_ready = (
             self.face_detector.models_ready
             and self.antispoof_evaluator.models_ready
             and deepfake_ready
+            and human_face_ready
         )
         return HealthResponse(
             status="ready" if redis_ok else "degraded",
@@ -712,6 +728,14 @@ class VerificationSessionService:
                     "sample_frames": self.deepfake_sample_frames,
                     "model_hash": self.deepfake_evaluator.model_hash,
                 },
+                "human_face": {
+                    "enabled": self.human_face_evaluator.enabled,
+                    "ready": self.human_face_evaluator.models_ready,
+                    "runtime": self.human_face_evaluator.runtime_label,
+                    "threshold": self.settings.verifier_human_face_threshold,
+                    "enforced": self.settings.verifier_human_face_enforce_decision,
+                    "model_hash": self.human_face_evaluator.model_hash,
+                },
             },
             tuning={
                 "minimum_step_frames": self.minimum_step_frames,
@@ -724,6 +748,7 @@ class VerificationSessionService:
                 "quality_max_pitch_degrees": self.settings.verifier_quality_max_pitch_degrees,
                 "quality_min_brightness": self.settings.verifier_quality_min_brightness,
                 "quality_max_brightness": self.settings.verifier_quality_max_brightness,
+                "human_face_threshold": self.settings.verifier_human_face_threshold,
                 "landmark_spotcheck_max_center_mismatch_px": self.settings.verifier_landmark_spotcheck_max_center_mismatch_px,
                 "turn_yaw_threshold_degrees": self.settings.verifier_liveness_turn_yaw_threshold_degrees,
                 "turn_offset_threshold": self.settings.verifier_liveness_turn_offset_threshold,
@@ -853,6 +878,22 @@ class VerificationSessionService:
             "face_center": spotcheck.face_center if spotcheck is not None else None,
         }
 
+    def _human_face_payload(
+        self,
+        human_face: HumanFaceEvaluation | None,
+    ) -> dict[str, Any]:
+        return {
+            "enabled": human_face.enabled if human_face is not None else False,
+            "enforced": human_face.enforced if human_face is not None else False,
+            "passed": human_face.passed if human_face is not None else False,
+            "score": human_face.human_face_score if human_face is not None else None,
+            "top_label": human_face.top_label if human_face is not None else None,
+            "frames_processed": human_face.frames_processed if human_face is not None else 0,
+            "message": (
+                human_face.message if human_face is not None else "Human-face scoring disabled"
+            ),
+        }
+
     def _liveness_payload(self, liveness: LivenessEvaluation) -> dict[str, Any]:
         return {
             "passed": liveness.passed,
@@ -895,6 +936,66 @@ class VerificationSessionService:
             "model_hash": deepfake.model_hash,
             "preview": False,
         }
+
+    def _evaluate_human_face(
+        self,
+        frame: FrameInput,
+        face_detection: FaceDetectionResult | None,
+    ) -> HumanFaceEvaluation:
+        return self.human_face_evaluator.evaluate(frame, face_detection)
+
+    def _evaluate_human_face_session(
+        self,
+        frames: list[FrameInput],
+        face_detections: list[FaceDetectionResult],
+    ) -> HumanFaceEvaluation:
+        if not frames or not face_detections:
+            return HumanFaceEvaluation(
+                enabled=self.human_face_evaluator.enabled,
+                enforced=self.human_face_evaluator.enforced,
+                passed=True,
+                human_face_score=None,
+                top_label=None,
+                frames_processed=0,
+                model_hash=self.human_face_evaluator.model_hash,
+                message="No accepted frames available for human-face scoring",
+            )
+
+        sampled_frames = frames[-min(len(frames), 4):]
+        detections_by_index = {d.frame_index: d for d in face_detections}
+        evaluations = [
+            self._evaluate_human_face(frame, detections_by_index.get(frame.frame_index))
+            for frame in sampled_frames
+        ]
+        scored = [item for item in evaluations if item.human_face_score is not None]
+        if not scored:
+            return HumanFaceEvaluation(
+                enabled=self.human_face_evaluator.enabled,
+                enforced=self.human_face_evaluator.enforced,
+                passed=False,
+                human_face_score=None,
+                top_label=None,
+                frames_processed=0,
+                model_hash=self.human_face_evaluator.model_hash,
+                message="Human-face scoring unavailable for accepted frames",
+            )
+
+        average_score = round(
+            sum(float(item.human_face_score or 0.0) for item in scored) / len(scored),
+            4,
+        )
+        passed = all(item.passed for item in scored)
+        top_label = scored[-1].top_label
+        return HumanFaceEvaluation(
+            enabled=scored[-1].enabled,
+            enforced=scored[-1].enforced,
+            passed=passed,
+            human_face_score=average_score,
+            top_label=top_label,
+            frames_processed=len(scored),
+            model_hash=scored[-1].model_hash,
+            message=_session_human_face_message(passed, average_score, top_label),
+        )
 
     async def _get_session_record(self, session_id: str) -> SessionRecord:
         session = await self.store.get_session(session_id)
@@ -1033,6 +1134,7 @@ class VerificationSessionService:
             if detection.detected and quality.passed and spotcheck.passed
         ][-_ANTI_SPOOF_PREVIEW_FRAME_LIMIT:]
         antispoof_preview = self._preview_antispoof(preview_bundle)
+        human_face = self._evaluate_human_face(latest_frame, face_detection)
         current_step = session.challenge_type
         liveness = self.liveness_evaluator.evaluate(
             self._to_pipeline_challenge(current_step),
@@ -1061,6 +1163,7 @@ class VerificationSessionService:
                 face_detection=face_detection,
                 face_quality=face_quality,
                 landmark_spotcheck=landmark_spotcheck,
+                human_face=human_face,
                 antispoof=antispoof_preview,
                 current_step=session.challenge_type,
                 step_progress=session.step_progress,
@@ -1101,6 +1204,7 @@ class VerificationSessionService:
             face_detection=face_detection,
             face_quality=face_quality,
             landmark_spotcheck=landmark_spotcheck,
+            human_face=human_face,
             antispoof=antispoof_preview,
             current_step=current_step,
             step_progress=session.step_progress,
@@ -1214,3 +1318,15 @@ class VerificationSessionService:
         return PipelineChallengeType(
             challenge_type.value if isinstance(challenge_type, ChallengeType) else challenge_type
         )
+
+
+def _session_human_face_message(
+    passed: bool,
+    score: float | None,
+    top_label: str | None,
+) -> str:
+    if score is None:
+        return "Human-face score unavailable for this session"
+    if passed:
+        return f"Human-face session average passed ({score:.2f}, top label: {top_label or 'unknown'})"
+    return f"Human-face session average flagged a non-human or ambiguous subject ({score:.2f}, top label: {top_label or 'unknown'})"

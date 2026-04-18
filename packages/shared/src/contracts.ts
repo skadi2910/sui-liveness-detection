@@ -28,6 +28,15 @@ export interface VerificationDebugPayload {
     checks?: Record<string, boolean>;
     metrics?: Record<string, number | string | boolean | null>;
   };
+  human_face?: {
+    enabled?: boolean;
+    enforced?: boolean;
+    passed?: boolean;
+    score?: number | null;
+    top_label?: string | null;
+    frames_processed?: number;
+    message?: string;
+  };
   landmark_spotcheck?: {
     enforced?: boolean;
     passed?: boolean;
@@ -159,6 +168,9 @@ export interface VerificationResult {
   confidence: number;
   spoof_score: number;
   max_spoof_score?: number;
+  human_face_score?: number | null;
+  human_face_message?: string | null;
+  human_face_enabled?: boolean;
   deepfake_score?: number | null;
   max_deepfake_score?: number | null;
   deepfake_frames_processed?: number;
@@ -211,6 +223,14 @@ export interface HealthResponse {
       sample_frames?: number;
       model_hash?: string | null;
     };
+    human_face?: {
+      enabled?: boolean;
+      ready?: boolean;
+      runtime?: string;
+      threshold?: number;
+      enforced?: boolean;
+      model_hash?: string | null;
+    };
   };
   tuning?: {
     minimum_step_frames?: number;
@@ -256,6 +276,7 @@ export interface AdminEvaluateFrameResponse {
   face_detection: Record<string, unknown>;
   quality: Record<string, unknown>;
   landmark_spotcheck: Record<string, unknown>;
+  human_face: Record<string, unknown>;
   liveness: Record<string, unknown>;
   antispoof: Record<string, unknown>;
   deepfake: Record<string, unknown>;
@@ -277,6 +298,7 @@ export interface AdminEvaluateSessionResponse {
   face_detection: Record<string, unknown>;
   quality: Record<string, unknown>;
   landmark_spotcheck: Record<string, unknown>;
+  human_face: Record<string, unknown>;
   liveness: Record<string, unknown>;
   antispoof: Record<string, unknown>;
   deepfake: Record<string, unknown>;

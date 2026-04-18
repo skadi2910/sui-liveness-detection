@@ -372,6 +372,7 @@ export function BackendHealthPanel({ health }: { health: HealthResponse | null }
           <div><span>chain</span><strong>{health.chain_adapter}</strong></div>
           <div><span>storage</span><strong>{health.storage_adapter}</strong></div>
           <div><span>encryption</span><strong>{health.encryption_adapter}</strong></div>
+          <div><span>human-face</span><strong>{health.model_details?.human_face?.enabled ? (health.model_details?.human_face?.ready ? "ready" : "degraded") : "disabled"}</strong></div>
           <div><span>deepfake</span><strong>{health.model_details?.deepfake?.enabled ? (health.model_details?.deepfake?.ready ? "ready" : "degraded") : "disabled"}</strong></div>
         </div>
       ) : (
@@ -446,6 +447,8 @@ export function ServerChecksPanel(props: {
         <div><span>quality gate</span><strong>{props.backendDebug?.quality?.passed ? "passed" : "blocked"}</strong></div>
         <div><span>quality issue</span><strong>{props.backendDebug?.quality?.primary_issue ?? "none"}</strong></div>
         <div><span>quality score</span><strong>{formatMetric(props.backendDebug?.quality?.score)}</strong></div>
+        <div><span>human face</span><strong>{props.backendDebug?.human_face?.enabled ? (props.backendDebug?.human_face?.passed ? "passed" : "flagged") : "disabled"}</strong></div>
+        <div><span>human score</span><strong>{formatMetric(props.result?.human_face_score ?? props.backendDebug?.human_face?.score ?? null)}</strong></div>
         <div><span>liveness step</span><strong>{props.backendDebug?.liveness?.current_step ? challengeLabel(props.backendDebug.liveness.current_step as ChallengeType) : "pending"}</strong></div>
         <div><span>step progress</span><strong>{formatPercent(props.backendDebug?.liveness?.step_progress)}</strong></div>
         <div><span>spot-check</span><strong>{serverSpotcheckStatus}</strong></div>
@@ -459,6 +462,10 @@ export function ServerChecksPanel(props: {
         <div><span>terminal verdict</span><strong>{props.result?.status ?? "streaming"}</strong></div>
       </div>
       <div className="server-note"><span>quality feedback</span><strong>{serverQualityFeedback}</strong></div>
+      <div className="server-note">
+        <span>human-face note</span>
+        <strong>{props.result?.human_face_message ?? props.backendDebug?.human_face?.message ?? "Human-face scoring disabled."}</strong>
+      </div>
       <div className="server-note"><span>failure reason</span><strong>{serverFailureReason}</strong></div>
       <div className="server-note">
         <span>reported scenario</span>

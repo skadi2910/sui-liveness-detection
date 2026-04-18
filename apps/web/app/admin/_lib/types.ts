@@ -52,6 +52,9 @@ export type CalibrationRecord = {
   human: boolean;
   spoof_score: number;
   max_spoof_score: number;
+  human_face_score?: number | null;
+  human_face_message?: string | null;
+  human_face_enabled?: boolean;
   deepfake_score?: number | null;
   max_deepfake_score?: number | null;
   deepfake_frames_processed?: number;

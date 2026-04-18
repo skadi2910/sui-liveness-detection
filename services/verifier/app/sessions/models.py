@@ -107,6 +107,9 @@ class VerificationResult(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     spoof_score: float = Field(ge=0.0, le=1.0)
     max_spoof_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    human_face_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    human_face_message: str | None = None
+    human_face_enabled: bool = False
     deepfake_score: float | None = Field(default=None, ge=0.0, le=1.0)
     max_deepfake_score: float | None = Field(default=None, ge=0.0, le=1.0)
     deepfake_frames_processed: int = Field(default=0, ge=0)
@@ -198,6 +201,7 @@ class AdminEvaluateFrameResponse(BaseModel):
     face_detection: dict[str, Any]
     quality: dict[str, Any]
     landmark_spotcheck: dict[str, Any]
+    human_face: dict[str, Any]
     liveness: dict[str, Any]
     antispoof: dict[str, Any]
     deepfake: dict[str, Any]
@@ -219,6 +223,7 @@ class AdminEvaluateSessionResponse(BaseModel):
     face_detection: dict[str, Any]
     quality: dict[str, Any]
     landmark_spotcheck: dict[str, Any]
+    human_face: dict[str, Any]
     liveness: dict[str, Any]
     antispoof: dict[str, Any]
     deepfake: dict[str, Any]

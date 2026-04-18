@@ -15,6 +15,7 @@ from app.pipeline.antispoof import build_antispoof_evaluator
 from app.pipeline.deepfake import build_deepfake_evaluator
 from app.pipeline.evidence import EvidenceAssembler
 from app.pipeline.face import build_face_detector
+from app.pipeline.human_face import build_human_face_evaluator
 from app.pipeline.liveness import MockLivenessEvaluator
 from app.pipeline.quality import HeuristicFaceQualityEvaluator
 from app.sessions.redis_store import RedisSessionStore
@@ -44,6 +45,13 @@ def build_lifespan(settings: Settings):
             model_path=settings.verifier_deepfake_model_path,
             threshold=settings.verifier_deepfake_threshold,
             enforce_decision=settings.verifier_deepfake_enforce_decision,
+        )
+        human_face_evaluator = build_human_face_evaluator(
+            mode=settings.verifier_human_face_model_mode,
+            enabled=settings.verifier_human_face_enabled,
+            model_id=settings.verifier_human_face_model_id,
+            threshold=settings.verifier_human_face_threshold,
+            enforce_decision=settings.verifier_human_face_enforce_decision,
         )
         app.state.settings = settings
         app.state.session_store = store
@@ -75,6 +83,7 @@ def build_lifespan(settings: Settings):
             ),
             antispoof_evaluator=antispoof_evaluator,
             deepfake_evaluator=deepfake_evaluator,
+            human_face_evaluator=human_face_evaluator,
             evidence_assembler=EvidenceAssembler(),
             proof_minter=MockProofMinter(),
             evidence_store=InMemoryEvidenceStore(),

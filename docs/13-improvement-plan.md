@@ -11,7 +11,9 @@ The MVP stack is running end-to-end with real models and a hardened multi-step l
 
 - YOLOv8 face detection (ONNX, `yolov8n-face-lindevs.onnx`)
 - Heuristic face quality gate (OpenCV-based blur / size / angle / brightness checks)
+- Human-face gate (telemetry-first CLIP zero-shot face-crop classifier)
 - Silent-Face passive anti-spoof (ONNX ensemble, official upstream weights)
+- Finalize-time deepfake scorer (ONNX, telemetry-first by default)
 - TensorFlow.js face landmarks (browser-side, landmark telemetry streamed to backend)
 - Active challenge-response liveness — **server-authored randomized 2- or 3-step sequences**
   - Supported steps in the verifier: `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile`, `open_mouth`
@@ -39,6 +41,9 @@ The MVP stack is running end-to-end with real models and a hardened multi-step l
 - Finalize-time deepfake scoring is now wired into verifier results, health diagnostics, and terminal confidence as an optional second decision head
 - Terminal verifier results now include structured `attack_analysis` so failed sessions can distinguish presentation-attack, deepfake, combined-attack, and non-attack failure families
 - Local development / Docker now points at a real ONNX deepfake model (`onnx-community/Deep-Fake-Detector-v2-Model-ONNX`, `model_int8.onnx`) with enforcement still disabled by default
+- The verifier currently runs as a gated sequential pipeline:
+  - live path: face detect → quality → spot-check → human-face → liveness / anti-spoof preview
+  - finalize path: accepted-frame filtering → liveness → anti-spoof → deepfake → decision fusion
 - Production-parity local Docker assets now exist:
   - `docker-compose.prod.yml`
   - `proxy/nginx.conf`
@@ -53,8 +58,8 @@ What follows is a prioritized plan to harden the verifier before adding new laye
 
 ## Identified Gaps (from review + research)
 
-### Gap 1 — No human face gate
-The current pipeline assumes the incoming face is human. It does not explicitly reject non-human faces (animal masks, cartoon faces, plush toys). YOLOv8-face is trained on human face data and will usually skip non-human faces, but this is implicit behavior, not an explicit gate.
+### Gap 1 — No enforced human face gate yet
+The verifier now has a real telemetry-first human-face gate backed by a CLIP zero-shot classifier on the detected face crop. It exposes score/runtime diagnostics in health, admin evaluation endpoints, live debug payloads, and terminal results. It is not enforcing rejection by default yet, so non-human filtering still needs validation before it becomes a hard gate.
 
 ### Gap 2 — No enforced deepfake gate yet
 The verifier now loads a real finalize-time ONNX deepfake detector and records sampled deepfake scores in results. It is still telemetry-first by default. Until it is validated against the local attack matrix and switched into enforced decisioning, talking-head / face-swap coverage still primarily depends on the existing anti-spoof + challenge stack.
@@ -82,34 +87,41 @@ Ordered by impact vs implementation cost. Do not start a new priority until the 
 
 ---
 
-### Priority 1 — Add Gate 0: Human Face Classifier
+### Priority 1 — Human Face Gate (implemented, telemetry-first)
 
-**Why first:** This is the most direct fix for the non-human face problem identified above. It is also a lightweight pre-filter that reduces load on the more expensive models downstream.
+**Status:** Implemented as a telemetry-first face-crop classifier. The current local model path is a CLIP zero-shot scorer (`openai/clip-vit-base-patch32`) that compares the detected face crop against prompts such as real human face, animal face, cartoon face, and doll/mannequin face.
 
-**What to build:**
-- A binary classifier: `human_face` vs `not_human_face`
-- Input: the face crop output from YOLOv8 (not the full frame)
-- Model options ranked by effort:
-  1. **MobileNetV3-Small fine-tuned** — smallest, CPU-friendly, fine-tune on a mixed dataset of human faces + animal faces + masks + cartoons
-  2. **EfficientNet-B0 fine-tuned** — slightly heavier but more accurate, same training approach
-  3. **Rule-based skin tone + facial symmetry check** — very fast heuristic fallback, not robust against edge cases but adds a cheap first filter
+**Current implementation:**
+- input: YOLOv8 detected face crop
+- runtime: Transformers CLIP
+- exposed through:
+  - `GET /api/health`
+  - live debug payloads / `Server Checks`
+  - admin frame/session evaluation endpoints
+  - terminal verifier results and exports
+- current rollout mode:
+  - `enabled=true`
+  - `ready=true`
+  - `enforced=false`
 
-**Training data sources:**
-- Human faces: FFHQ, CelebA, LFW
-- Non-human: ImageNet animal classes, iNaturalist (animal faces), cartoon face datasets
-- Masks and props: collect from open spoof datasets (WMCA includes 3D mask samples)
-
-**Integration point:**
+**Current role in the pipeline:**
 ```
-Frame → YOLOv8 face crop → [NEW] Human Face Gate → Anti-Spoof → Liveness
-                                  ↓ FAIL
-                           Reject: "No human face detected"
+Frame → YOLOv8 face crop → Human Face Gate (telemetry-first) → Anti-Spoof → Liveness
 ```
 
-**Acceptance criteria:**
-- Rejects a cat face video with > 99% reliability
-- Does not reject real human faces with hats, glasses, or facial hair
-- Adds < 10ms latency on CPU
+**Remaining work before enforcement:**
+- benchmark obvious non-human inputs:
+  - cat/dog face
+  - cartoon/anime face
+  - doll/mannequin
+  - printed mask / costume face
+- verify no meaningful false rejects on real human webcam sessions
+- only after that, consider enabling hard rejection with a clear terminal reason such as `no_human_face_detected`
+
+**Acceptance criteria before enforcement:**
+- obvious non-human face-like inputs score consistently below threshold
+- real human sessions remain stable across lighting, glasses, hats, and facial hair
+- latency remains acceptable on CPU
 
 ---
 
@@ -220,7 +232,7 @@ Frame → YOLOv8 face crop → [NEW] Human Face Gate → Anti-Spoof → Liveness
 **Acceptance criteria:**
 - Report generated for all 7 attack classes
 - Print and screen replay pass rate = 0%
-- Non-human pass rate = 0% (after Priority 1 is done)
+- Non-human pass rate = 0% (after Priority 1 enforcement is enabled)
 - Talking-head and face-swap pass rate measured and documented (expected to be the weak point)
 
 ---
@@ -301,8 +313,9 @@ Fused verdict: reject if EITHER score exceeds threshold
 Frame in
     ↓
 Gate 0 — Human Face Gate        [Priority 1]
-    Human face classifier on YOLOv8 crop
-    Rejects: non-human faces, cartoon faces, masks with non-human features
+    Human-face classifier on YOLOv8 crop
+    Current state: telemetry-first, visible in debug/result/health
+    Target enforced state: reject non-human faces, cartoon faces, masks with non-human features
     ↓
 Gate 1 — Face Quality Gate      [Priority 3 ✅]
     Blur / size / angle / brightness checks (OpenCV, no model)
@@ -346,8 +359,6 @@ Verdict: verified / failed + failure reason + confidence score
 The multi-step challenge sequence is complete. The remaining sprint work in priority order:
 
 1. **Collect real webcam samples and complete threshold calibration** — still pending per `10-progress-log.md`. Prefer fixed admin sequences for this pass so repeated human and attack runs are comparable across sessions.
-2. **Validate the new face quality gate on real sessions** — use the live `Server Checks` panel plus saved NDJSON samples to confirm blur, size, angle, and lighting checks behave as intended on project-native devices.
+2. **Validate the new face quality gate and human-face gate on real sessions** — use the live `Server Checks` panel plus saved NDJSON samples to confirm blur, size, angle, lighting, and human-face scores behave as intended on project-native devices.
 3. **Build the attack matrix test fixture set (Priority 4 framework)** — even with a partial set of attack samples now, establish the reporting structure so every release gate produces a per-attack-class pass rate table, using the structured `attack_analysis` output instead of only raw `failure_reason`.
-4. **Tune Priority 2 and Priority 5 thresholds using saved calibration rows** — motion continuity, landmark spot-check, and deepfake scoring are implemented; the remaining work is validating and tightening their thresholds against real captured sessions.
-
-Start the human face classifier (Priority 1) only after the above are stable, since it requires a training or fine-tuning run against an assembled dataset.
+4. **Tune Priority 1, Priority 2, and Priority 5 thresholds using saved calibration rows** — human-face, motion continuity, landmark spot-check, and deepfake scoring are implemented; the remaining work is validating and tightening their thresholds against real captured sessions.

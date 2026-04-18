@@ -41,13 +41,62 @@ flowchart LR
   B --> D["FastAPI Verifier"]
   C --> D
   D --> E["Redis Session Store"]
-  D --> F["Liveness + Anti-Spoof Pipeline"]
-  D --> G["ProofMinter Adapter"]
-  D --> H["EvidenceStore Adapter"]
+  D --> F["Gated Verification Pipeline"]
   D --> I["EvidenceEncryptor Adapter"]
+  I --> H["EvidenceStore Adapter"]
+  H --> K["Walrus (Ciphertext Blobs)"]
+  D --> G["ProofMinter Adapter"]
   G --> J["Sui Move Contract"]
-  H --> K["Walrus"]
   I --> L["Seal"]
+```
+
+## Current Verifier Stack
+
+The running verifier is now built around a session-oriented public API plus an admin-only QA surface.
+
+Public product flow:
+
+- `POST /api/sessions`
+- `GET /api/sessions/{session_id}`
+- `GET /api/health`
+- `WS /ws/sessions/{session_id}/stream`
+- compatibility alias: `WS /ws/verify/{session_id}`
+
+Admin / QA flow:
+
+- `POST /api/admin/evaluate/frame`
+- `POST /api/admin/evaluate/session`
+- `POST /api/admin/calibration/append`
+- `POST /api/admin/attack-matrix/append`
+
+Current verifier pipeline components:
+
+- browser-side TensorFlow.js face landmarks for telemetry
+- YOLOv8 face detection (server-side, ONNX)
+- heuristic face quality gate
+- server-side landmark spot-check
+- human-face gate (CLIP zero-shot, telemetry-first)
+- active liveness evaluation
+- Silent-Face anti-spoof
+- finalize-time deepfake scorer
+- mode-aware decision fusion and attack analysis
+
+The verifier is currently **gated and mostly sequential**, not a fully parallel fan-out design.
+
+## Evidence And Retrieval Flow
+
+```mermaid
+flowchart LR
+  A["Verifier Session"] --> B["Evidence Package JSON"]
+  B --> C["Seal Encrypt"]
+  C --> D["Encrypted Bytes"]
+  D --> E["Walrus Upload"]
+  E --> F["blob_id + blob object ref"]
+  F --> G["Sui Proof Metadata"]
+  G --> H["Owner Reads Proof"]
+  H --> I["Fetch Ciphertext From Walrus"]
+  I --> J["Seal Owner Approval"]
+  J --> K["Local Decrypt In Frontend"]
 ```
 
 ## Trust Boundaries
@@ -56,6 +105,8 @@ flowchart LR
 - The verifier service is the authority for verification outcomes.
 - Redis stores short-lived session state, not permanent biometric evidence.
 - Sui stores proof metadata and verification references, not raw biometric media.
+- Walrus stores ciphertext blobs, not plaintext biometric evidence.
+- Seal controls decryption policy for retained evidence and should gate owner or dispute access.
 - Walrus and Seal are optional in the first build wave but must be integrated behind stable adapter interfaces.
 
 ## Design Decisions
@@ -77,6 +128,7 @@ flowchart LR
 - Start on Sui testnet.
 - Model the proof as a non-transferable object by omitting `store` on the owned proof type.
 - Keep Sui, Walrus, and Seal behind explicit adapters so the verifier service remains testable locally.
+- Treat Seal as the encryption and access-control layer and Walrus as the ciphertext storage layer.
 
 ## Bootstrap Concerns
 

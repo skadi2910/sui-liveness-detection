@@ -139,6 +139,9 @@ def test_health_exposes_tuning_snapshot(client: TestClient) -> None:
     assert payload["tuning"]["motion_min_displacement"] == 0.002
     assert payload["tuning"]["motion_max_still_ratio"] == 0.8
     assert payload["tuning"]["motion_min_transitions"] == 4
+    assert payload["model_details"]["human_face"]["enabled"] is True
+    assert payload["model_details"]["human_face"]["ready"] is True
+    assert payload["tuning"]["human_face_threshold"] == 0.55
     assert payload["model_details"]["deepfake"]["enabled"] is True
     assert payload["model_details"]["deepfake"]["ready"] is True
     assert payload["tuning"]["deepfake_threshold"] == 0.65
@@ -254,9 +257,37 @@ def test_admin_evaluate_frame_returns_stage_outputs(client: TestClient) -> None:
     assert payload["accepted_for_liveness"] is True
     assert payload["face_detection"]["detected"] is True
     assert payload["quality"]["passed"] is True
+    assert payload["human_face"]["enabled"] is True
+    assert payload["human_face"]["score"] is not None
     assert payload["antispoof"]["spoof_score"] == 0.04
     assert payload["deepfake"]["enabled"] is True
     assert payload["deepfake"]["frames_processed"] == 1
+
+
+def test_admin_evaluate_frame_surfaces_human_face_signal(client: TestClient) -> None:
+    response = client.post(
+        "/api/admin/evaluate/frame",
+        json={
+            "challenge_type": "smile",
+            "mode": "full",
+            "frame": {
+                "frame_index": 0,
+                "metadata": {
+                    "force_face_detected": True,
+                    "force_quality_pass": True,
+                    "force_human_face_score": 0.12,
+                    "force_human_face_label": "a cartoon face",
+                },
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["human_face"]["enabled"] is True
+    assert payload["human_face"]["passed"] is False
+    assert payload["human_face"]["score"] == 0.12
+    assert payload["human_face"]["top_label"] == "a cartoon face"
 
 
 def test_admin_evaluate_session_returns_verdict_preview(client: TestClient) -> None:
@@ -292,6 +323,7 @@ def test_admin_evaluate_session_returns_verdict_preview(client: TestClient) -> N
     assert payload["liveness"]["passed"] is True
     assert payload["verdict_preview"]["human"] is True
     assert payload["verdict_preview"]["attack_analysis"]["suspected_attack_family"] == "none"
+    assert payload["human_face"]["enabled"] is True
     assert payload["deepfake"]["enabled"] is True
     assert payload["deepfake"]["frames_processed"] == 4
 
@@ -332,6 +364,8 @@ def test_websocket_flow_supports_two_step_sequence(client: TestClient) -> None:
         assert terminal_event["payload"]["human"] is True
         assert terminal_event["payload"]["status"] == "verified"
         assert terminal_event["payload"]["challenge_sequence"] == ["open_mouth", "turn_right"]
+        assert terminal_event["payload"]["human_face_enabled"] is True
+        assert terminal_event["payload"]["human_face_score"] is not None
         assert terminal_event["payload"]["deepfake_enabled"] is True
 
 
