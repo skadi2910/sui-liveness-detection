@@ -110,7 +110,9 @@ def verifier_app(tmp_path) -> FastAPI:
             threshold=settings.verifier_human_face_threshold,
         ),
         evidence_assembler=EvidenceAssembler(),
-        proof_minter=MockProofMinter(minimum_confidence=0.6),
+        proof_minter=MockProofMinter(
+            minimum_confidence=settings.verifier_proof_minimum_confidence,
+        ),
         evidence_store=InMemoryEvidenceStore(),
         evidence_encryptor=MockEvidenceEncryptor(),
     )

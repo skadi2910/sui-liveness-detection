@@ -55,6 +55,10 @@ export const autoFinalizeDelayMs = readNumberEnv(
   process.env.NEXT_PUBLIC_AUTO_FINALIZE_DELAY_MS,
   900,
 );
+export const healthPollIntervalMs = readNumberEnv(
+  process.env.NEXT_PUBLIC_HEALTH_POLL_INTERVAL_MS,
+  3000,
+);
 export const maxLogEntries = 12;
 
 export const verificationModeLabels: Record<VerificationMode, string> = {

@@ -59,7 +59,7 @@ class Settings(BaseSettings):
         alias="VERIFIER_HUMAN_FACE_THRESHOLD",
     )
     verifier_human_face_enforce_decision: bool = Field(
-        default=False,
+        default=True,
         alias="VERIFIER_HUMAN_FACE_ENFORCE_DECISION",
     )
     verifier_landmark_spotcheck_max_center_mismatch_px: float = Field(
@@ -103,8 +103,12 @@ class Settings(BaseSettings):
         alias="VERIFIER_DEEPFAKE_SAMPLE_FRAMES",
     )
     verifier_deepfake_enforce_decision: bool = Field(
-        default=False,
+        default=True,
         alias="VERIFIER_DEEPFAKE_ENFORCE_DECISION",
+    )
+    verifier_proof_minimum_confidence: float = Field(
+        default=0.35,
+        alias="VERIFIER_PROOF_MINIMUM_CONFIDENCE",
     )
     verifier_liveness_blink_closed_threshold: float = Field(
         default=0.23,

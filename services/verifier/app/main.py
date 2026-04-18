@@ -85,7 +85,9 @@ def build_lifespan(settings: Settings):
             deepfake_evaluator=deepfake_evaluator,
             human_face_evaluator=human_face_evaluator,
             evidence_assembler=EvidenceAssembler(),
-            proof_minter=MockProofMinter(),
+            proof_minter=MockProofMinter(
+                minimum_confidence=settings.verifier_proof_minimum_confidence,
+            ),
             evidence_store=InMemoryEvidenceStore(),
             evidence_encryptor=MockEvidenceEncryptor(),
         )

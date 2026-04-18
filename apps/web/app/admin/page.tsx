@@ -95,7 +95,11 @@ export default function AdminPage() {
     });
   }, [media.landmarkMetrics, verifier.backendDebug, verifier.stepStatus]);
 
-  const canFinalize = Boolean(verifier.session) && !verifier.finalizeRequested && !verifier.result;
+  const canFinalize =
+    verifier.modelsReady &&
+    Boolean(verifier.session) &&
+    !verifier.finalizeRequested &&
+    !verifier.result;
 
   return (
     <main className="page-shell">
@@ -139,6 +143,8 @@ export default function AdminPage() {
           forceSpoof={forceSpoof}
           onForceSpoofChange={setForceSpoof}
           busy={verifier.busy}
+          modelsReady={verifier.modelsReady}
+          backendHealth={verifier.health}
           cameraState={media.cameraState}
           canFinalize={canFinalize}
           finalizeRequested={verifier.finalizeRequested}

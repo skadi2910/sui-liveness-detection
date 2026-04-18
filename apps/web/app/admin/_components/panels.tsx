@@ -172,6 +172,8 @@ export function SessionControlsPanel(props: {
   forceSpoof: boolean;
   onForceSpoofChange: (value: boolean) => void;
   busy: boolean;
+  modelsReady: boolean;
+  backendHealth: HealthResponse | null;
   cameraState: "idle" | "ready" | "error";
   canFinalize: boolean;
   finalizeRequested: boolean;
@@ -314,13 +316,29 @@ export function SessionControlsPanel(props: {
       </div>
 
       <div className="button-row">
-        <button disabled={props.busy || props.cameraState !== "ready"} onClick={props.onStartSession}>
-          {props.busy ? "Starting..." : "Start session"}
+        <button
+          disabled={props.busy || props.cameraState !== "ready" || !props.modelsReady}
+          onClick={props.onStartSession}
+        >
+          {props.busy
+            ? "Starting..."
+            : !props.modelsReady
+              ? "Warming up models..."
+              : "Start session"}
         </button>
         <button disabled={!props.canFinalize} onClick={props.onFinalize} type="button">
           {props.finalizeRequested ? "Finalizing..." : "Finalize"}
         </button>
       </div>
+
+      {!props.modelsReady ? (
+        <p className="field-hint">
+          Verification is temporarily locked while backend models load.
+          {props.backendHealth?.model_details
+            ? ` Current model status: face=${props.backendHealth.model_details.face_detector?.ready ? "ready" : "loading"}, anti-spoof=${props.backendHealth.model_details.antispoof?.ready ? "ready" : "loading"}, human-face=${props.backendHealth.model_details.human_face?.enabled ? (props.backendHealth.model_details.human_face?.ready ? "ready" : "loading") : "disabled"}, deepfake=${props.backendHealth.model_details.deepfake?.enabled ? (props.backendHealth.model_details.deepfake?.ready ? "ready" : "loading") : "disabled"}.`
+            : ""}
+        </p>
+      ) : null}
 
       <div className="button-grid">
         <button onClick={() => props.onQueueAction("open_mouth")} type="button">Trigger mouth</button>
@@ -378,6 +396,12 @@ export function BackendHealthPanel({ health }: { health: HealthResponse | null }
       ) : (
         <p>Waiting for health response...</p>
       )}
+      {health && health.models !== "ready" ? (
+        <p className="field-hint">
+          Backend is reachable, but verification stays paused until the required
+          models report ready.
+        </p>
+      ) : null}
     </div>
   );
 }

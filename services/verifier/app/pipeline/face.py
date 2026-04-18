@@ -32,6 +32,10 @@ class MockFaceDetector(FaceDetector):
         self.detection_threshold = detection_threshold
         self.model_hash = model_hash
 
+    @property
+    def models_ready(self) -> bool:
+        return True
+
     def detect(self, frame: FrameInput) -> FaceDetectionResult:
         forced = frame.metadata.get("force_face_detected")
         image = decode_frame_image(frame)

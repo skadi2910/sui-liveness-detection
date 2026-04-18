@@ -46,6 +46,10 @@ class MockAntiSpoofEvaluator(AntiSpoofEvaluator):
         self.hard_fail_threshold = hard_fail_threshold
         self.model_hash = model_hash
 
+    @property
+    def models_ready(self) -> bool:
+        return True
+
     def evaluate(
         self,
         frames: list[FrameInput],

@@ -126,7 +126,7 @@ class MockHumanFaceEvaluator(HumanFaceEvaluator):
         elif frame.metadata.get("synthetic_attack") is True:
             score = 0.08
         else:
-            score = frame.pseudo_score("human-face", 0.22, 0.92)
+            score = frame.pseudo_score("human-face", 0.72, 0.94)
 
         top_label = str(frame.metadata.get("force_human_face_label", _HUMAN_FACE_LABEL))
         passed = score >= self.threshold

@@ -16,6 +16,9 @@ def determine_finalization_decision(
     mode: VerificationMode,
     face_detected: bool,
     quality_frames_available: bool,
+    human_face_enabled: bool = False,
+    human_face_passed: bool = True,
+    human_face_enforced: bool = False,
     liveness_passed: bool,
     antispoof_passed: bool,
     deepfake_enabled: bool = False,
@@ -27,6 +30,9 @@ def determine_finalization_decision(
         failure_reason = _failure_reason(
             face_detected=face_detected,
             quality_frames_available=quality_frames_available,
+            human_face_enabled=human_face_enabled,
+            human_face_passed=True,
+            human_face_enforced=False,
             liveness_passed=liveness_passed,
             antispoof_passed=True,
             deepfake_enabled=deepfake_enabled,
@@ -39,12 +45,16 @@ def determine_finalization_decision(
         human = (
             face_detected
             and quality_frames_available
+            and ((not human_face_enforced) or human_face_passed)
             and antispoof_passed
             and ((not deepfake_enforced) or deepfake_passed)
         )
         failure_reason = _failure_reason(
             face_detected=face_detected,
             quality_frames_available=quality_frames_available,
+            human_face_enabled=human_face_enabled,
+            human_face_passed=human_face_passed,
+            human_face_enforced=human_face_enforced,
             liveness_passed=True,
             antispoof_passed=antispoof_passed,
             deepfake_enabled=deepfake_enabled,
@@ -57,12 +67,16 @@ def determine_finalization_decision(
         human = (
             face_detected
             and quality_frames_available
+            and ((not human_face_enforced) or human_face_passed)
             and deepfake_enabled
             and deepfake_passed
         )
         failure_reason = _failure_reason(
             face_detected=face_detected,
             quality_frames_available=quality_frames_available,
+            human_face_enabled=human_face_enabled,
+            human_face_passed=human_face_passed,
+            human_face_enforced=human_face_enforced,
             liveness_passed=True,
             antispoof_passed=True,
             deepfake_enabled=deepfake_enabled,
@@ -74,6 +88,7 @@ def determine_finalization_decision(
     human = (
         face_detected
         and quality_frames_available
+        and ((not human_face_enforced) or human_face_passed)
         and liveness_passed
         and antispoof_passed
         and ((not deepfake_enforced) or deepfake_passed)
@@ -81,6 +96,9 @@ def determine_finalization_decision(
     failure_reason = _failure_reason(
         face_detected=face_detected,
         quality_frames_available=quality_frames_available,
+        human_face_enabled=human_face_enabled,
+        human_face_passed=human_face_passed,
+        human_face_enforced=human_face_enforced,
         liveness_passed=liveness_passed,
         antispoof_passed=antispoof_passed,
         deepfake_enabled=deepfake_enabled,
@@ -109,6 +127,10 @@ def build_attack_analysis(
         failure_category = "none"
         suspected_attack_family = "none"
         note = "No attack signal blocked the final verification result."
+    elif failure_reason == "no_human_face_detected":
+        failure_category = "non_human_face"
+        suspected_attack_family = "non_human_face"
+        note = "The human-face gate flagged the subject as non-human or ambiguous."
     elif presentation_attack_detected and deepfake_detected:
         failure_category = "attack_detected"
         suspected_attack_family = "combined_attack_signals"
@@ -284,6 +306,9 @@ def _failure_reason(
     *,
     face_detected: bool,
     quality_frames_available: bool,
+    human_face_enabled: bool,
+    human_face_passed: bool,
+    human_face_enforced: bool,
     liveness_passed: bool,
     antispoof_passed: bool,
     deepfake_enabled: bool,
@@ -294,6 +319,10 @@ def _failure_reason(
         return "no_face_detected"
     if not quality_frames_available:
         return "insufficient_frame_quality"
+    if human_face_enforced and not human_face_enabled:
+        return "human_face_unavailable"
+    if human_face_enforced and not human_face_passed:
+        return "no_human_face_detected"
     if not antispoof_passed:
         return "spoof_detected"
     if deepfake_enforced and not deepfake_enabled:
@@ -312,9 +341,13 @@ def _categorize_failure_reason(failure_reason: str | None) -> str:
         return "quality_failure"
     if failure_reason == "challenge_failed":
         return "liveness_failure"
+    if failure_reason == "human_face_unavailable":
+        return "human_face_unavailable"
+    if failure_reason == "no_human_face_detected":
+        return "non_human_face"
     if failure_reason == "deepfake_unavailable":
         return "deepfake_unavailable"
-    if failure_reason == "mint_failed":
+    if failure_reason in {"mint_failed", "confidence_below_threshold", "session_not_verified"}:
         return "proof_mint_failure"
     if failure_reason:
         return "verification_failure"
@@ -328,6 +361,10 @@ def _failure_note_for_category(category: str) -> str:
         return "The verifier did not receive enough frames that passed the quality gate."
     if category == "liveness_failure":
         return "The active liveness sequence did not complete successfully."
+    if category == "human_face_unavailable":
+        return "Human-face enforcement was enabled, but the human-face model was unavailable."
+    if category == "non_human_face":
+        return "The verifier classified the presented subject as non-human or ambiguous."
     if category == "deepfake_unavailable":
         return "Deepfake-only evaluation was requested, but the deepfake model was unavailable."
     if category == "proof_mint_failure":

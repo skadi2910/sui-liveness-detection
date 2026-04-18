@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
 
 from app.sessions.models import ClientEventType, VerificationMode, WebSocketClientEvent
 from app.sessions.service import VerificationSessionService
@@ -46,6 +46,14 @@ async def verify_session(websocket: WebSocket, session_id: str) -> None:
                 break
     except WebSocketDisconnect:
         return
+    except HTTPException as exc:
+        await websocket.send_json(
+            service.error_event(
+                str(exc.detail),
+                session_id=session_id,
+            )
+        )
+        await websocket.close(code=1013)
     except Exception as exc:
         await websocket.send_json(service.error_event(str(exc), session_id=session_id))
         await websocket.close(code=status.WS_1011_INTERNAL_ERROR)

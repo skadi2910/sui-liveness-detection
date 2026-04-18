@@ -321,7 +321,11 @@ def _build_evaluation(
     flagged_frames = [frame_index for frame_index, score in scores if score >= threshold]
     passed = mean_score < threshold and max_score < threshold
     message = (
-        "Deepfake telemetry collected"
+        (
+            "Deepfake checks passed across sampled frames"
+            if passed and enforce_decision
+            else "Deepfake telemetry collected"
+        )
         if passed or not enforce_decision
         else f"Potential deepfake indicators found in {len(flagged_frames)} sampled frame(s)"
     )

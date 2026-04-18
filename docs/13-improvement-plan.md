@@ -11,9 +11,9 @@ The MVP stack is running end-to-end with real models and a hardened multi-step l
 
 - YOLOv8 face detection (ONNX, `yolov8n-face-lindevs.onnx`)
 - Heuristic face quality gate (OpenCV-based blur / size / angle / brightness checks)
-- Human-face gate (telemetry-first CLIP zero-shot face-crop classifier)
+- Human-face gate (CLIP zero-shot face-crop classifier, enforced by default in the current hackathon/demo build)
 - Silent-Face passive anti-spoof (ONNX ensemble, official upstream weights)
-- Finalize-time deepfake scorer (ONNX, telemetry-first by default)
+- Finalize-time deepfake scorer (ONNX, enforced by default in the current hackathon/demo build)
 - TensorFlow.js face landmarks (browser-side, landmark telemetry streamed to backend)
 - Active challenge-response liveness — **server-authored randomized 2- or 3-step sequences**
   - Supported steps in the verifier: `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile`, `open_mouth`
@@ -40,7 +40,7 @@ The MVP stack is running end-to-end with real models and a hardened multi-step l
 - Canonical verification stream route is now `/ws/sessions/{session_id}/stream` with the legacy `/ws/verify/{session_id}` alias kept for compatibility
 - Finalize-time deepfake scoring is now wired into verifier results, health diagnostics, and terminal confidence as an optional second decision head
 - Terminal verifier results now include structured `attack_analysis` so failed sessions can distinguish presentation-attack, deepfake, combined-attack, and non-attack failure families
-- Local development / Docker now points at a real ONNX deepfake model (`onnx-community/Deep-Fake-Detector-v2-Model-ONNX`, `model_int8.onnx`) with enforcement still disabled by default
+- Local development / Docker now points at a real ONNX deepfake model (`onnx-community/Deep-Fake-Detector-v2-Model-ONNX`, `model_int8.onnx`) and the current hackathon/demo build enforces it by default
 - The verifier currently runs as a gated sequential pipeline:
   - live path: face detect → quality → spot-check → human-face → liveness / anti-spoof preview
   - finalize path: accepted-frame filtering → liveness → anti-spoof → deepfake → decision fusion
@@ -58,11 +58,11 @@ What follows is a prioritized plan to harden the verifier before adding new laye
 
 ## Identified Gaps (from review + research)
 
-### Gap 1 — No enforced human face gate yet
-The verifier now has a real telemetry-first human-face gate backed by a CLIP zero-shot classifier on the detected face crop. It exposes score/runtime diagnostics in health, admin evaluation endpoints, live debug payloads, and terminal results. It is not enforcing rejection by default yet, so non-human filtering still needs validation before it becomes a hard gate.
+### ~~Gap 1 — No enforced human face gate yet~~ ✅ RESOLVED FOR HACKATHON BUILD
+The verifier now has a real CLIP-based human-face gate backed by a zero-shot classifier on the detected face crop. It exposes score/runtime diagnostics in health, admin evaluation endpoints, live debug payloads, and terminal results, and it is enforced by default in the current hackathon/demo build. The remaining work is deciding whether that strict default should remain in a production-cautious rollout after broader benchmarking.
 
-### Gap 2 — No enforced deepfake gate yet
-The verifier now loads a real finalize-time ONNX deepfake detector and records sampled deepfake scores in results. It is still telemetry-first by default. Until it is validated against the local attack matrix and switched into enforced decisioning, talking-head / face-swap coverage still primarily depends on the existing anti-spoof + challenge stack.
+### ~~Gap 2 — No enforced deepfake gate yet~~ ✅ RESOLVED FOR HACKATHON BUILD
+The verifier now loads a real finalize-time ONNX deepfake detector, records sampled deepfake scores in results, and enforces the head by default in the current hackathon/demo build. The remaining work is deciding whether that strict default should remain enabled after broader attack-matrix validation.
 
 ### ~~Gap 3 — Single challenge per session~~ ✅ RESOLVED
 The backend now authors randomized 2- or 3-step sequences server-side with ordered enforcement, per-step frame windows, and configurable hold-window pacing. The verifier still supports `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile`, and `open_mouth`, but the default pool now favors friendlier actions for production-like manual testing. Remaining open items from this gap (motion continuity check, server-side landmark spot-check) are tracked under Priority 2 below.
@@ -87,9 +87,9 @@ Ordered by impact vs implementation cost. Do not start a new priority until the 
 
 ---
 
-### Priority 1 — Human Face Gate (implemented, telemetry-first)
+### Priority 1 — Human Face Gate (implemented, strict-demo enforced)
 
-**Status:** Implemented as a telemetry-first face-crop classifier. The current local model path is a CLIP zero-shot scorer (`openai/clip-vit-base-patch32`) that compares the detected face crop against prompts such as real human face, animal face, cartoon face, and doll/mannequin face.
+**Status:** Implemented as a face-crop classifier. The current local model path is a CLIP zero-shot scorer (`openai/clip-vit-base-patch32`) that compares the detected face crop against prompts such as real human face, animal face, cartoon face, and doll/mannequin face.
 
 **Current implementation:**
 - input: YOLOv8 detected face crop
@@ -102,23 +102,23 @@ Ordered by impact vs implementation cost. Do not start a new priority until the 
 - current rollout mode:
   - `enabled=true`
   - `ready=true`
-  - `enforced=false`
+  - `enforced=true` in the current hackathon/demo build
 
 **Current role in the pipeline:**
 ```
-Frame → YOLOv8 face crop → Human Face Gate (telemetry-first) → Anti-Spoof → Liveness
+Frame → YOLOv8 face crop → Human Face Gate → Anti-Spoof → Liveness
 ```
 
-**Remaining work before enforcement:**
+**Remaining work after strict-demo enforcement:**
 - benchmark obvious non-human inputs:
   - cat/dog face
   - cartoon/anime face
   - doll/mannequin
   - printed mask / costume face
 - verify no meaningful false rejects on real human webcam sessions
-- only after that, consider enabling hard rejection with a clear terminal reason such as `no_human_face_detected`
+- use the benchmark results to decide whether hard rejection should stay enabled outside the hackathon/demo build
 
-**Acceptance criteria before enforcement:**
+**Acceptance criteria for keeping enforcement long-term:**
 - obvious non-human face-like inputs score consistently below threshold
 - real human sessions remain stable across lighting, glasses, hats, and facial hair
 - latency remains acceptable on CPU
@@ -237,9 +237,9 @@ Frame → YOLOv8 face crop → Human Face Gate (telemetry-first) → Anti-Spoof 
 
 ---
 
-### Priority 5 — Deepfake Detector Prototype (implemented, telemetry-first)
+### Priority 5 — Deepfake Detector Prototype (implemented, strict-demo enforced)
 
-**Status:** The verifier now has a finalize-time deepfake scoring slot backed by a real ONNX model in local development / Docker, plus result/health telemetry. Enforcement remains intentionally disabled by default until attack-matrix evidence justifies turning it on.
+**Status:** The verifier now has a finalize-time deepfake scoring slot backed by a real ONNX model in local development / Docker, plus result/health telemetry. The current hackathon/demo build enforces it by default so the full stack is showcased end to end.
 
 **Current target:** see `14-deepfake-detector-research.md`. The active local implementation target is an ONNX-ready image-level detector on accepted face crops (`onnx-community/Deep-Fake-Detector-v2-Model-ONNX`, quantized `model_int8.onnx`), with a heavier temporal video model reserved for a later hardening pass only if the attack matrix proves it is necessary.
 
@@ -271,7 +271,7 @@ Fused verdict: reject if EITHER score exceeds threshold
 - expose model/runtime state in `GET /api/health`
 - include deepfake confidence contribution in the terminal verifier confidence when the head is active, while capping exported human-confidence using peak attack risk so failed attack sessions do not look like strong human passes
 
-**Remaining acceptance criteria before enforcement:**
+**Remaining acceptance criteria for keeping enforcement long-term:**
 - Talking-head and face-swap pass rate drops below 5% when the head is enabled on local attack-matrix samples
 - Live human pass rate does not decrease materially (no false-reject regression)
 - Latency budget remains acceptable on CPU because the head samples only a small number of accepted face crops
@@ -314,8 +314,8 @@ Frame in
     ↓
 Gate 0 — Human Face Gate        [Priority 1]
     Human-face classifier on YOLOv8 crop
-    Current state: telemetry-first, visible in debug/result/health
-    Target enforced state: reject non-human faces, cartoon faces, masks with non-human features
+    Current state: enforced by default in the current hackathon/demo build, visible in debug/result/health
+    Long-term target: keep rejection enabled only if broader benchmarking supports it
     ↓
 Gate 1 — Face Quality Gate      [Priority 3 ✅]
     Blur / size / angle / brightness checks (OpenCV, no model)
@@ -323,7 +323,7 @@ Gate 1 — Face Quality Gate      [Priority 3 ✅]
     ↓
 Gate 2 — Anti-Spoof Gate        [current + Priority 5]
     Silent-Face ONNX (passive, print/replay)
-    + Deepfake detector ONNX (conditional on Priority 4 results)
+    + Deepfake detector ONNX (currently enforced in the hackathon/demo build; subject to later benchmark review)
     Rejects: printed photos, screen replays, AI-generated video
     ↓
 Gate 3 — Liveness Gate          [current ✅ + Priority 2 remaining]

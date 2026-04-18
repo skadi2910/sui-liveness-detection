@@ -148,6 +148,7 @@ class VerificationSessionService:
         self,
         payload: AdminEvaluateFrameRequest,
     ) -> AdminEvaluateFrameResponse:
+        self._ensure_verifier_ready(action="frame evaluation")
         frame_payload = self._admin_frame_payload(payload.frame)
         frame_bundle = self.frame_evaluator.build_frame_bundle([frame_payload])
         frame, face_detection, face_quality, landmark_spotcheck = frame_bundle[0]
@@ -184,6 +185,7 @@ class VerificationSessionService:
         self,
         payload: AdminEvaluateSessionRequest,
     ) -> AdminEvaluateSessionResponse:
+        self._ensure_verifier_ready(action="session evaluation")
         frame_bundle = self._admin_frame_bundle(payload.frames)
         (
             frames,
@@ -211,6 +213,13 @@ class VerificationSessionService:
             mode=payload.mode,
             face_detected=face_detected,
             quality_frames_available=quality_frames_available,
+            human_face_enabled=human_face.enabled,
+            human_face_passed=human_face.passed,
+            human_face_enforced=(
+                human_face.enabled
+                and self.settings.verifier_human_face_enforce_decision
+                and payload.mode != VerificationMode.LIVENESS_ONLY
+            ),
             liveness_passed=liveness.passed,
             antispoof_passed=antispoof.passed,
             deepfake_enabled=deepfake.enabled,
@@ -285,6 +294,7 @@ class VerificationSessionService:
         )
 
     async def create_session(self, payload: SessionCreateRequest) -> SessionCreateResponse:
+        self._ensure_verifier_ready(action="session creation")
         existing = await self.store.find_active_session_by_wallet(payload.wallet_address)
         if existing is not None:
             existing.status = SessionStatus.EXPIRED
@@ -357,6 +367,7 @@ class VerificationSessionService:
         return session.to_response()
 
     async def mark_ready(self, session_id: str) -> SessionRecord:
+        self._ensure_verifier_ready(action="verification stream")
         session = await self._get_session_record(session_id)
         if session.status == SessionStatus.CREATED:
             session.status = SessionStatus.READY
@@ -367,6 +378,7 @@ class VerificationSessionService:
         return session
 
     async def record_frame(self, session_id: str, event: WebSocketClientEvent) -> SessionRecord:
+        self._ensure_verifier_ready(action="frame processing")
         session = await self._get_session_record(session_id)
         if session.status in {SessionStatus.VERIFIED, SessionStatus.FAILED, SessionStatus.EXPIRED}:
             return session
@@ -397,6 +409,7 @@ class VerificationSessionService:
         return session
 
     async def record_landmarks(self, session_id: str, event: WebSocketClientEvent) -> SessionRecord:
+        self._ensure_verifier_ready(action="landmark processing")
         session = await self._get_session_record(session_id)
         if session.status in {SessionStatus.VERIFIED, SessionStatus.FAILED, SessionStatus.EXPIRED}:
             return session
@@ -446,6 +459,7 @@ class VerificationSessionService:
         session_id: str,
         mode: VerificationMode = VerificationMode.FULL,
     ) -> VerificationResult:
+        self._ensure_verifier_ready(action="finalization")
         session = await self._get_session_record(session_id)
         self.logger.info(
             "finalize requested",
@@ -512,6 +526,13 @@ class VerificationSessionService:
             mode=mode,
             face_detected=face_detected,
             quality_frames_available=quality_frames_available,
+            human_face_enabled=human_face.enabled,
+            human_face_passed=human_face.passed,
+            human_face_enforced=(
+                human_face.enabled
+                and self.settings.verifier_human_face_enforce_decision
+                and mode != VerificationMode.LIVENESS_ONLY
+            ),
             liveness_passed=liveness.passed,
             antispoof_passed=antispoof.passed,
             deepfake_enabled=deepfake.enabled,
@@ -523,18 +544,6 @@ class VerificationSessionService:
         )
         human = decision.human
         failure_reason = decision.failure_reason
-        attack_analysis = build_attack_analysis(
-            human=human,
-            failure_reason=failure_reason,
-            spoof_score=antispoof.spoof_score,
-            max_spoof_score=antispoof.max_spoof_score,
-            antispoof_passed=antispoof.passed,
-            deepfake_enabled=deepfake.enabled,
-            deepfake_score=deepfake.deepfake_score,
-            max_deepfake_score=deepfake.max_deepfake_score,
-            deepfake_passed=deepfake.passed,
-        )
-
         face_confidences = [item.confidence for item in face_detections if item.detected]
         face_confidence = sum(face_confidences) / len(face_confidences) if face_confidences else 0.0
         quality_score = (
@@ -604,6 +613,18 @@ class VerificationSessionService:
             else:
                 human = False
                 failure_reason = mint_result.reason or "mint_failed"
+
+        attack_analysis = build_attack_analysis(
+            human=human,
+            failure_reason=failure_reason,
+            spoof_score=antispoof.spoof_score,
+            max_spoof_score=antispoof.max_spoof_score,
+            antispoof_passed=antispoof.passed,
+            deepfake_enabled=deepfake.enabled,
+            deepfake_score=deepfake.deepfake_score,
+            max_deepfake_score=deepfake.max_deepfake_score,
+            deepfake_passed=deepfake.passed,
+        )
 
         if human:
             session.status = SessionStatus.VERIFIED
@@ -761,6 +782,7 @@ class VerificationSessionService:
                 "deepfake_threshold": self.settings.verifier_deepfake_threshold,
                 "deepfake_sample_frames": self.deepfake_sample_frames,
                 "deepfake_enforced": self.settings.verifier_deepfake_enforce_decision,
+                "proof_minimum_confidence": self.settings.verifier_proof_minimum_confidence,
             },
         )
 
@@ -1310,6 +1332,30 @@ class VerificationSessionService:
         if value is None:
             return None
         return datetime.fromisoformat(value)
+
+    def _ensure_verifier_ready(self, *, action: str) -> None:
+        ready, not_ready_models = self._verification_models_ready()
+        if ready:
+            return
+
+        model_phrase = ", ".join(not_ready_models) if not_ready_models else "required models"
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Verifier models are still loading for {action}. Waiting on: {model_phrase}.",
+        )
+
+    def _verification_models_ready(self) -> tuple[bool, list[str]]:
+        model_statuses = [
+            ("face_detector", self.face_detector.models_ready),
+            ("antispoof", self.antispoof_evaluator.models_ready),
+        ]
+        if self.deepfake_evaluator.enabled:
+            model_statuses.append(("deepfake", self.deepfake_evaluator.models_ready))
+        if self.human_face_evaluator.enabled:
+            model_statuses.append(("human_face", self.human_face_evaluator.models_ready))
+
+        not_ready_models = [label for label, ready in model_statuses if not ready]
+        return (len(not_ready_models) == 0, not_ready_models)
 
     def _to_pipeline_challenge(
         self,

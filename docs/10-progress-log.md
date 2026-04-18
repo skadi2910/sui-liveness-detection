@@ -46,7 +46,7 @@ Validated on April 18, 2026:
 - heuristic face quality gate before liveness and anti-spoof frame acceptance
 - motion continuity check inside the liveness gate when sufficient landmark positions are available
 - server-side landmark spot-check that cross-checks landmark-implied face position against the detected face box
-- human-face gate using a telemetry-first CLIP zero-shot classifier on the detected face crop
+- human-face gate using a CLIP zero-shot classifier on the detected face crop, enforced by default in the current hackathon/demo build
 - stateful blink counting across frames
 - metadata fallback path when landmarks are absent
 - server-authored randomized 2- or 3-step challenge sequences
@@ -58,6 +58,7 @@ Validated on April 18, 2026:
 - health payload also exposes motion continuity tuning thresholds
 - health payload also exposes the landmark spot-check mismatch threshold
 - health payload now also exposes human-face model readiness, runtime, threshold, and enforcement mode
+- health payload now also exposes the current proof-mint minimum confidence threshold used by the local/demo adapter
 - tuned blink / nod thresholds and lower step-frame floor for more natural challenge completion during browser QA
 - backend session/service logic refactored into smaller session modules with clearer responsibilities
 - configurable hold-window pacing for step completion
@@ -135,7 +136,9 @@ Wallet cooldown after terminal sessions has been removed to support heavy repeat
 
 The one milestone that is still only partially complete is project-native threshold tuning: the repo now has the collection/analyzer workflow, but actual real webcam sample capture still requires a human to perform and label sessions. This is calibration work for the pretrained stack, not model retraining.
 
-The verifier now also has a telemetry-first human-face gate. It is model-backed and visible in `/admin`, but it is not enforcing terminal rejection by default yet.
+The verifier now also has a model-backed human-face gate, and the current hackathon/demo build enforces it by default in `full`, `antispoof_only`, and `deepfake_only` modes.
+
+The current hackathon/demo build also enforces the deepfake head by default so the demo showcases the full multi-model verifier stack. A more production-cautious enforcement posture can still be restored later after broader benchmarking.
 
 ## Real Model Notes
 
@@ -144,6 +147,7 @@ The verifier now also has a telemetry-first human-face gate. It is model-backed 
 - The anti-spoof runtime had to be aligned with upstream preprocessing: Silent-Face expects float tensors in the `0..255` value range, not normalized `0..1`.
 - Browser-side landmarks are now produced by TensorFlow.js face landmarks and sent to the backend over the existing WebSocket flow.
 - The backend now also runs a CLIP-based human-face scorer on the detected face crop and exposes it in live debug, health, admin evaluation endpoints, and terminal result exports.
+- The current hackathon/demo build now enforces both the human-face gate and the deepfake head by default, while still exposing their scores and notes in terminal/admin results.
 - Backend liveness now consumes landmark-derived EAR, MAR, and yaw-style signals, while preserving metadata overrides for synthetic or manual testing.
 - The testing harness now uses backend-authored multi-step sequences instead of a single randomized challenge.
 - `open_mouth` has been removed from the active testing sequence pool for this phase and replaced with `smile`.
@@ -163,6 +167,7 @@ The verifier now also has a telemetry-first human-face gate. It is model-backed 
 - The admin console can now run fixed challenge sequences for repeatable testing instead of relying only on randomized friendly sequences.
 - Failed terminal results now carry structured attack-family semantics such as `presentation_attack`, `deepfake_attack`, or `combined_attack_signals` instead of exposing only a raw failure reason.
 - Terminal verifier confidence is now peak-aware, so strong spoof/deepfake peaks cap the exported human-confidence score on failed attack sessions.
+- Proof minting now uses an explicit configurable minimum confidence threshold instead of a hidden hardcoded cutoff, which keeps clean hackathon-demo `full` sessions from failing unexpectedly after the verifier already passed them.
 - The backend now blocks replay-like step windows that are too static across consecutive landmark anchor positions, reducing the chance that a still or near-still clip can satisfy a challenge step.
 - The backend now excludes frames whose browser landmark telemetry does not spatially line up with the detected face crop, reducing trust in tampered landmark streams.
 - The browser landmark runtime had to be swapped away from `@mediapipe/tasks-vision` because the local in-app browser repeatedly crashed inside the Tasks runtime; TensorFlow.js now provides the browser landmark layer more reliably in this environment.
@@ -186,9 +191,12 @@ The verifier now also has a telemetry-first human-face gate. It is model-backed 
    - completed: sample collection format, calibration folder, analyzer script, and live server-side quality visibility
    - completed in this session: first-pass blink / nod threshold tuning and faster frame capture cadence for manual QA
    - pending: broader human-recorded sample collection and threshold tuning pass across devices and lighting conditions
-9. Add telemetry-first human-face gate and validate the real model path: completed.
-   - completed: backend pipeline wiring, health/debug/result exposure, admin panel visibility, export support, and real CLIP model load
-   - pending: broader non-human benchmark pass before any enforcement decision
+9. Add human-face gate and validate the real model path: completed.
+   - completed: backend pipeline wiring, health/debug/result exposure, admin panel visibility, export support, real CLIP model load, and strict-demo enforcement defaults
+   - pending: broader non-human benchmark pass before deciding whether production defaults should remain this strict
+10. Promote deepfake from telemetry-first prototype to strict-demo enforcement in the hackathon build: completed.
+   - completed: finalize-time ONNX scoring, result/health exposure, strict-demo enforcement defaults, and proof-mint flow alignment for clean `full` passes
+   - pending: broader attack-matrix review before deciding on long-term production enforcement defaults
 
 ## New Assets
 

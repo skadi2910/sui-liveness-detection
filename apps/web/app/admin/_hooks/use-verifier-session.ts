@@ -14,6 +14,7 @@ import type {
 import {
   autoFinalizeDelayMs,
   captureIntervalMs,
+  healthPollIntervalMs,
   httpBase,
   wsBase,
 } from "../_lib/constants";
@@ -44,6 +45,9 @@ export function useVerifierSession(params: {
   const autoAssistRef = useRef(false);
   const captureFrameRef = useRef(params.captureFrame);
   const forceSpoofRef = useRef(params.forceSpoof);
+  const sessionRef = useRef<CreateSessionResponse | null>(null);
+  const resultRef = useRef<VerificationResult | null>(null);
+  const busyRef = useRef(false);
 
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [session, setSession] = useState<CreateSessionResponse | null>(null);
@@ -59,6 +63,7 @@ export function useVerifierSession(params: {
   const [connectionState, setConnectionState] = useState("idle");
   const [busy, setBusy] = useState(false);
   const [finalizeRequested, setFinalizeRequested] = useState(false);
+  const modelsReady = health?.models === "ready";
 
   useEffect(() => {
     autoAssistRef.current = params.autoAssist;
@@ -72,15 +77,37 @@ export function useVerifierSession(params: {
     forceSpoofRef.current = params.forceSpoof;
   }, [params.forceSpoof]);
 
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  useEffect(() => {
+    resultRef.current = result;
+  }, [result]);
+
+  useEffect(() => {
+    busyRef.current = busy;
+  }, [busy]);
+
   async function fetchHealth() {
     try {
       const response = await fetch(`${httpBase}/api/health`, { cache: "no-store" });
       const payload = (await response.json()) as HealthResponse;
       setHealth(payload);
+      if (!socketRef.current && !sessionRef.current && !resultRef.current && !busyRef.current) {
+        setStatusMessage(
+          payload.models === "ready"
+            ? "Backend ready."
+            : "Waiting for backend models to finish loading...",
+        );
+      }
       params.appendLog("pipeline", "Backend health fetched", payload);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Health check failed.";
+      if (!socketRef.current && !sessionRef.current && !resultRef.current && !busyRef.current) {
+        setStatusMessage("Waiting for backend health...");
+      }
       params.appendLog("pipeline", "Health check failed", { message });
     }
   }
@@ -126,6 +153,15 @@ export function useVerifierSession(params: {
   }
 
   function sendFinalize() {
+    if (!modelsReady) {
+      setStatusMessage("Finalize unavailable: backend models are still loading.");
+      params.appendLog("pipeline", "Finalize blocked", {
+        reason: "models_not_ready",
+      });
+      void fetchHealth();
+      return;
+    }
+
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
       setStatusMessage("Finalize unavailable: session socket is not open.");
       params.appendLog("pipeline", "Finalize blocked", {
@@ -150,6 +186,16 @@ export function useVerifierSession(params: {
   }
 
   async function startSession() {
+    if (!modelsReady) {
+      setStatusMessage("Backend models are still loading. Please wait a moment.");
+      params.appendLog("pipeline", "Session start blocked", {
+        reason: "models_not_ready",
+        health,
+      });
+      void fetchHealth();
+      return;
+    }
+
     cleanupSocket();
     setBusy(true);
     setResult(null);
@@ -319,13 +365,18 @@ export function useVerifierSession(params: {
 
   useEffect(() => {
     void fetchHealth();
+    const intervalId = window.setInterval(() => {
+      void fetchHealth();
+    }, healthPollIntervalMs);
     return () => {
+      window.clearInterval(intervalId);
       cleanupSocket();
     };
   }, []);
 
   return {
     health,
+    modelsReady,
     session,
     challengeType,
     challengeSequence,

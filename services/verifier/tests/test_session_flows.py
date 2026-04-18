@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+import pytest
 
 from app.sessions.models import ChallengeType
 
@@ -123,6 +124,23 @@ def test_create_session_accepts_fixed_sequence_override(client: TestClient) -> N
     assert payload["total_challenges"] == 3
 
 
+def test_create_session_waits_for_models_to_be_ready(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = client.app.state.session_service
+    monkeypatch.setattr(
+        type(service.face_detector),
+        "models_ready",
+        property(lambda self: False),
+    )
+
+    response = client.post("/api/sessions", json=_session_payload("0xwarming-wallet"))
+
+    assert response.status_code == 503
+    assert "still loading" in response.json()["detail"]
+
+
 def test_health_exposes_tuning_snapshot(client: TestClient) -> None:
     response = client.get("/api/health")
 
@@ -141,10 +159,13 @@ def test_health_exposes_tuning_snapshot(client: TestClient) -> None:
     assert payload["tuning"]["motion_min_transitions"] == 4
     assert payload["model_details"]["human_face"]["enabled"] is True
     assert payload["model_details"]["human_face"]["ready"] is True
+    assert payload["model_details"]["human_face"]["enforced"] is True
     assert payload["tuning"]["human_face_threshold"] == 0.55
     assert payload["model_details"]["deepfake"]["enabled"] is True
     assert payload["model_details"]["deepfake"]["ready"] is True
+    assert payload["model_details"]["deepfake"]["enforced"] is True
     assert payload["tuning"]["deepfake_threshold"] == 0.65
+    assert payload["tuning"]["proof_minimum_confidence"] == 0.35
 
 
 def test_create_session_supersedes_existing_active_session(client: TestClient) -> None:
@@ -262,6 +283,30 @@ def test_admin_evaluate_frame_returns_stage_outputs(client: TestClient) -> None:
     assert payload["antispoof"]["spoof_score"] == 0.04
     assert payload["deepfake"]["enabled"] is True
     assert payload["deepfake"]["frames_processed"] == 1
+
+
+def test_admin_evaluate_frame_waits_for_models_to_be_ready(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = client.app.state.session_service
+    monkeypatch.setattr(
+        type(service.face_detector),
+        "models_ready",
+        property(lambda self: False),
+    )
+
+    response = client.post(
+        "/api/admin/evaluate/frame",
+        json={
+            "challenge_type": "smile",
+            "mode": "full",
+            "frame": {"frame_index": 0, "metadata": {"force_face_detected": True}},
+        },
+    )
+
+    assert response.status_code == 503
+    assert "still loading" in response.json()["detail"]
 
 
 def test_admin_evaluate_frame_surfaces_human_face_signal(client: TestClient) -> None:
@@ -530,6 +575,88 @@ def test_deepfake_only_mode_fails_when_deepfake_score_is_high(client: TestClient
         assert terminal_event["payload"]["human"] is False
         assert terminal_event["payload"]["evaluation_mode"] == "deepfake_only"
         assert terminal_event["payload"]["failure_reason"] == "deepfake_detected"
+
+
+def test_full_mode_fails_when_human_face_gate_flags_non_human_subject(client: TestClient) -> None:
+    _force_sequence(client, [ChallengeType.SMILE])
+    create_response = client.post("/api/sessions", json=_session_payload("0xhuman-face-fail-wallet"))
+    session = create_response.json()
+
+    with client.websocket_connect(session["ws_url"]) as websocket:
+        assert websocket.receive_json()["type"] == "session_ready"
+
+        for _ in range(4):
+            _send_frame_and_receive_progress(
+                websocket,
+                _frame_event(
+                    {
+                        "force_face_detected": True,
+                        "force_quality_pass": True,
+                        "force_spoof_score": 0.02,
+                        "force_human_face_score": 0.08,
+                        "force_human_face_label": "a cartoon face",
+                        "smile_ratio": 0.5,
+                    }
+                ),
+            )
+
+        websocket.send_json({"type": "finalize", "mode": "full"})
+        assert websocket.receive_json()["type"] == "processing"
+        terminal_event = websocket.receive_json()
+
+        assert terminal_event["type"] == "failed"
+        assert terminal_event["payload"]["human"] is False
+        assert terminal_event["payload"]["failure_reason"] == "no_human_face_detected"
+        assert (
+            terminal_event["payload"]["attack_analysis"]["failure_category"]
+            == "non_human_face"
+        )
+        assert (
+            terminal_event["payload"]["attack_analysis"]["suspected_attack_family"]
+            == "non_human_face"
+        )
+
+
+def test_full_mode_reports_proof_mint_failure_consistently(client: TestClient) -> None:
+    service = client.app.state.session_service
+    service.proof_minter.minimum_confidence = 0.99
+
+    _force_sequence(client, [ChallengeType.SMILE])
+    create_response = client.post("/api/sessions", json=_session_payload("0xproof-threshold-wallet"))
+    session = create_response.json()
+
+    with client.websocket_connect(session["ws_url"]) as websocket:
+        assert websocket.receive_json()["type"] == "session_ready"
+
+        for _ in range(4):
+            _send_frame_and_receive_progress(
+                websocket,
+                _frame_event(
+                    {
+                        "force_face_detected": True,
+                        "force_quality_pass": True,
+                        "force_spoof_score": 0.02,
+                        "force_human_face_score": 0.92,
+                        "force_deepfake_score": 0.1,
+                        "smile_ratio": 0.5,
+                    }
+                ),
+            )
+
+        websocket.send_json({"type": "finalize", "mode": "full"})
+        assert websocket.receive_json()["type"] == "processing"
+        terminal_event = websocket.receive_json()
+
+        assert terminal_event["type"] == "failed"
+        assert terminal_event["payload"]["failure_reason"] == "confidence_below_threshold"
+        assert (
+            terminal_event["payload"]["attack_analysis"]["failure_category"]
+            == "proof_mint_failure"
+        )
+        assert (
+            terminal_event["payload"]["attack_analysis"]["suspected_attack_family"]
+            == "none"
+        )
 
 
 def test_order_enforcement_prevents_later_step_from_counting_early(client: TestClient) -> None:
