@@ -63,7 +63,7 @@ class Settings(BaseSettings):
         alias="VERIFIER_ANTISPOOF_HARD_FAIL_THRESHOLD",
     )
     verifier_liveness_blink_closed_threshold: float = Field(
-        default=0.21,
+        default=0.23,
         alias="VERIFIER_LIVENESS_BLINK_CLOSED_THRESHOLD",
     )
     verifier_liveness_blink_open_threshold: float = Field(
@@ -87,11 +87,11 @@ class Settings(BaseSettings):
         alias="VERIFIER_LIVENESS_MOUTH_OPEN_THRESHOLD",
     )
     verifier_liveness_nod_pitch_threshold: float = Field(
-        default=10.0,
+        default=8.0,
         alias="VERIFIER_LIVENESS_NOD_PITCH_THRESHOLD",
     )
     verifier_liveness_nod_pitch_ratio_threshold: float = Field(
-        default=0.08,
+        default=0.06,
         alias="VERIFIER_LIVENESS_NOD_PITCH_RATIO_THRESHOLD",
     )
     verifier_liveness_smile_ratio_threshold: float = Field(
@@ -111,7 +111,7 @@ class Settings(BaseSettings):
         alias="VERIFIER_LIVENESS_MOTION_MIN_TRANSITIONS",
     )
     verifier_liveness_minimum_step_frames: int = Field(
-        default=4,
+        default=2,
         alias="VERIFIER_LIVENESS_MINIMUM_STEP_FRAMES",
     )
     verifier_session_ttl_seconds: int = Field(

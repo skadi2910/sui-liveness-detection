@@ -17,21 +17,25 @@ from app.core.logging import get_logger
 from app.pipeline.antispoof import AntiSpoofEvaluator
 from app.pipeline.evidence import EvidenceAssembler
 from app.pipeline.face import FaceDetector
-from app.pipeline.landmark_metrics import (
-    LandmarkSpotCheckEvaluation,
-    evaluate_landmark_spot_check,
-    extract_landmark_metrics,
-)
+from app.pipeline.landmark_metrics import LandmarkSpotCheckEvaluation
 from app.pipeline.liveness import LivenessEvaluator
 from app.pipeline.quality import FaceQualityEvaluation, FaceQualityEvaluator
 from app.pipeline.types import (
     AntiSpoofEvaluation,
     ChallengeType as PipelineChallengeType,
-    FaceBoundingBox,
     FaceDetectionResult,
     FrameInput,
     LivenessEvaluation,
     SessionStatus as PipelineSessionStatus,
+)
+from app.sessions.debug import build_session_debug_payload
+from app.sessions.finalize import (
+    calculate_terminal_confidence,
+    determine_finalization_decision,
+)
+from app.sessions.frame_pipeline import (
+    SessionFrameEvaluator,
+    clear_cached_frame_analysis,
 )
 from app.sessions.models import (
     CalibrationAppendResponse,
@@ -57,9 +61,6 @@ _HEAD_MOTION_CHALLENGES = {
     ChallengeType.TURN_RIGHT,
     ChallengeType.NOD_HEAD,
 }
-_SERVER_FACE_DETECTION_KEY = "_server_face_detection"
-_SERVER_QUALITY_KEY = "_server_quality"
-_SERVER_LANDMARK_SPOTCHECK_KEY = "_server_landmark_spotcheck"
 _ANTI_SPOOF_PREVIEW_FRAME_LIMIT = 8
 
 
@@ -84,13 +85,19 @@ class VerificationSessionService:
         self.attack_matrix_output_path = resolve_data_path(settings.verifier_attack_matrix_output_path)
         self.logger = get_logger(__name__)
         self.face_detector = face_detector
-        self.face_quality_evaluator = face_quality_evaluator
         self.liveness_evaluator = liveness_evaluator
         self.antispoof_evaluator = antispoof_evaluator
         self.evidence_assembler = evidence_assembler
         self.proof_minter = proof_minter
         self.evidence_store = evidence_store
         self.evidence_encryptor = evidence_encryptor
+        self.frame_evaluator = SessionFrameEvaluator(
+            face_detector=face_detector,
+            face_quality_evaluator=face_quality_evaluator,
+            max_landmark_center_mismatch_px=(
+                settings.verifier_landmark_spotcheck_max_center_mismatch_px
+            ),
+        )
 
     async def append_calibration_record(
         self,
@@ -241,7 +248,7 @@ class VerificationSessionService:
                 "metadata": event.metadata or {},
             }
         )
-        frame_bundle = self._build_frame_bundle(session)
+        frame_bundle = self.frame_evaluator.build_frame_bundle(session.frame_payloads)
         latest_frame, face_detection, face_quality, landmark_spotcheck = frame_bundle[-1]
         session.frames_processed += 1
         self._apply_stream_progress(
@@ -264,10 +271,7 @@ class VerificationSessionService:
             session.frame_payloads[-1]["landmarks"] = event.landmarks or {}
             metadata = dict(session.frame_payloads[-1].get("metadata", {}))
             metadata.update(event.metadata or {})
-            metadata.pop(_SERVER_FACE_DETECTION_KEY, None)
-            metadata.pop(_SERVER_QUALITY_KEY, None)
-            metadata.pop(_SERVER_LANDMARK_SPOTCHECK_KEY, None)
-            session.frame_payloads[-1]["metadata"] = metadata
+            session.frame_payloads[-1]["metadata"] = clear_cached_frame_analysis(metadata)
         else:
             session.frame_payloads.append(
                 {
@@ -280,7 +284,7 @@ class VerificationSessionService:
                 }
             )
 
-        frame_bundle = self._build_frame_bundle(session)
+        frame_bundle = self.frame_evaluator.build_frame_bundle(session.frame_payloads)
         latest_frame, face_detection, face_quality, landmark_spotcheck = frame_bundle[-1]
         self._apply_stream_progress(
             session,
@@ -325,7 +329,7 @@ class VerificationSessionService:
         session.updated_at = datetime.now(tz=UTC)
         await self.store.save_session(session)
 
-        frame_bundle = self._build_frame_bundle(session)
+        frame_bundle = self.frame_evaluator.build_frame_bundle(session.frame_payloads)
         frames = [frame for frame, _, _, _ in frame_bundle]
         face_detections = [face_detection for _, face_detection, _, _ in frame_bundle]
         quality_evaluations = [quality for _, _, quality, _ in frame_bundle]
@@ -352,33 +356,15 @@ class VerificationSessionService:
             },
         )
 
-        failure_reason: str | None = None
-        if mode == VerificationMode.LIVENESS_ONLY:
-            human = face_detected and quality_frames_available and liveness.passed
-            if not face_detected:
-                failure_reason = "no_face_detected"
-            elif not quality_frames_available:
-                failure_reason = "insufficient_frame_quality"
-            elif not liveness.passed:
-                failure_reason = "challenge_failed"
-        elif mode == VerificationMode.ANTISPOOF_ONLY:
-            human = face_detected and quality_frames_available and antispoof.passed
-            if not face_detected:
-                failure_reason = "no_face_detected"
-            elif not quality_frames_available:
-                failure_reason = "insufficient_frame_quality"
-            elif not antispoof.passed:
-                failure_reason = "spoof_detected"
-        else:
-            human = face_detected and quality_frames_available and liveness.passed and antispoof.passed
-            if not face_detected:
-                failure_reason = "no_face_detected"
-            elif not quality_frames_available:
-                failure_reason = "insufficient_frame_quality"
-            elif not antispoof.passed:
-                failure_reason = "spoof_detected"
-            elif not liveness.passed:
-                failure_reason = "challenge_failed"
+        decision = determine_finalization_decision(
+            mode=mode,
+            face_detected=face_detected,
+            quality_frames_available=quality_frames_available,
+            liveness_passed=liveness.passed,
+            antispoof_passed=antispoof.passed,
+        )
+        human = decision.human
+        failure_reason = decision.failure_reason
 
         face_confidences = [item.confidence for item in face_detections if item.detected]
         face_confidence = sum(face_confidences) / len(face_confidences) if face_confidences else 0.0
@@ -387,46 +373,13 @@ class VerificationSessionService:
             if quality_evaluations
             else 0.0
         )
-        if mode == VerificationMode.LIVENESS_ONLY:
-            confidence = round(
-                min(
-                    0.99,
-                    max(
-                        0.0,
-                        (face_confidence * 0.35)
-                        + (quality_score * 0.25)
-                        + (liveness.confidence * 0.4),
-                    ),
-                ),
-                4,
-            )
-        elif mode == VerificationMode.ANTISPOOF_ONLY:
-            confidence = round(
-                min(
-                    0.99,
-                    max(
-                        0.0,
-                        (face_confidence * 0.35)
-                        + (quality_score * 0.25)
-                        + ((1 - antispoof.spoof_score) * 0.4),
-                    ),
-                ),
-                4,
-            )
-        else:
-            confidence = round(
-                min(
-                    0.99,
-                    max(
-                        0.0,
-                        (face_confidence * 0.25)
-                        + (quality_score * 0.2)
-                        + (liveness.confidence * 0.35)
-                        + ((1 - antispoof.spoof_score) * 0.2),
-                    ),
-                ),
-                4,
-            )
+        confidence = calculate_terminal_confidence(
+            mode=mode,
+            face_confidence=face_confidence,
+            quality_score=quality_score,
+            liveness_confidence=liveness.confidence,
+            spoof_score=antispoof.spoof_score,
+        )
 
         proof_id: str | None = None
         blob_id: str | None = None
@@ -511,7 +464,7 @@ class VerificationSessionService:
         session.progress = 1.0
         session.step_progress = 1.0 if session.all_challenges_completed else session.step_progress
         session.updated_at = datetime.now(tz=UTC)
-        session.debug = self._build_debug_payload(
+        session.debug = build_session_debug_payload(
             latest_frame=frames[-1] if frames else None,
             face_detection=face_detections[-1] if face_detections else None,
             face_quality=quality_evaluations[-1] if quality_evaluations else None,
@@ -682,9 +635,6 @@ class VerificationSessionService:
             return False
         return True
 
-    def _build_frame_inputs(self, session: SessionRecord) -> list[FrameInput]:
-        return [self._frame_input_from_payload(payload) for payload in session.frame_payloads]
-
     def _apply_stream_progress(
         self,
         session: SessionRecord,
@@ -741,7 +691,7 @@ class VerificationSessionService:
                 session.step_status = StepStatus.ACTIVE
                 session.last_message = f"Step complete. Next: {self._step_label(session.challenge_type)}."
 
-            session.debug = self._build_debug_payload(
+            session.debug = build_session_debug_payload(
                 latest_frame=latest_frame,
                 face_detection=face_detection,
                 face_quality=face_quality,
@@ -781,7 +731,7 @@ class VerificationSessionService:
         if not face_detection.detected and liveness.progress <= 0:
             preferred_message = face_detection.message
         session.last_message = preferred_message or self._progress_message(session.frames_processed)
-        session.debug = self._build_debug_payload(
+        session.debug = build_session_debug_payload(
             latest_frame=latest_frame,
             face_detection=face_detection,
             face_quality=face_quality,
@@ -814,92 +764,6 @@ class VerificationSessionService:
         else:
             session.current_challenge_index = min(len(session.completed_challenges), session.total_challenges - 1)
             session.step_status = StepStatus.ACTIVE
-
-    def _build_debug_payload(
-        self,
-        *,
-        latest_frame: FrameInput | None,
-        face_detection: FaceDetectionResult | None,
-        face_quality: FaceQualityEvaluation | None,
-        landmark_spotcheck: LandmarkSpotCheckEvaluation | None,
-        antispoof: AntiSpoofEvaluation | None,
-        antispoof_preview: bool = True,
-        current_step: ChallengeType,
-        step_progress: float,
-        message: str,
-    ) -> dict[str, object]:
-        metrics = extract_landmark_metrics(latest_frame) if latest_frame is not None else None
-        bounding_box = None
-        if face_detection is not None and face_detection.bounding_box is not None:
-            bounding_box = {
-                "x": face_detection.bounding_box.x,
-                "y": face_detection.bounding_box.y,
-                "width": face_detection.bounding_box.width,
-                "height": face_detection.bounding_box.height,
-            }
-
-        point_count = 0
-        if metrics is not None:
-            point_count = metrics.point_count
-        if point_count == 0 and latest_frame is not None:
-            point_count = int(latest_frame.landmarks.get("point_count", 0) or 0)
-
-        return {
-            "face_detection": {
-                "detected": bool(face_detection.detected) if face_detection is not None else False,
-                "confidence": face_detection.confidence if face_detection is not None else 0.0,
-                "bounding_box": bounding_box,
-            },
-            "quality": {
-                "passed": face_quality.passed if face_quality is not None else False,
-                "score": face_quality.score if face_quality is not None else 0.0,
-                "primary_issue": face_quality.primary_issue if face_quality is not None else None,
-                "feedback": face_quality.feedback if face_quality is not None else [],
-                "checks": face_quality.checks if face_quality is not None else {},
-                "metrics": face_quality.metrics if face_quality is not None else {},
-            },
-            "landmark_spotcheck": {
-                "enforced": landmark_spotcheck.enforced if landmark_spotcheck is not None else False,
-                "passed": landmark_spotcheck.passed if landmark_spotcheck is not None else True,
-                "message": (
-                    landmark_spotcheck.message
-                    if landmark_spotcheck is not None
-                    else "Landmark spot-check unavailable"
-                ),
-                "mismatch_pixels": (
-                    landmark_spotcheck.mismatch_pixels if landmark_spotcheck is not None else None
-                ),
-                "threshold_pixels": (
-                    landmark_spotcheck.threshold_pixels if landmark_spotcheck is not None else None
-                ),
-                "anchors_used": landmark_spotcheck.anchors_used if landmark_spotcheck is not None else 0,
-                "landmark_center": (
-                    landmark_spotcheck.landmark_center if landmark_spotcheck is not None else None
-                ),
-                "face_center": landmark_spotcheck.face_center if landmark_spotcheck is not None else None,
-            },
-            "landmarks": {
-                "face_detected": bool(latest_frame and latest_frame.landmarks),
-                "point_count": point_count,
-                "yaw": metrics.yaw_degrees if metrics is not None else None,
-                "pitch": metrics.pitch if metrics is not None else None,
-                "smile_ratio": metrics.smile_ratio if metrics is not None else None,
-                "average_ear": metrics.ear if metrics is not None else None,
-            },
-            "liveness": {
-                "current_step": current_step.value,
-                "step_progress": round(step_progress, 4),
-                "message": message,
-            },
-            "antispoof": {
-                "passed": antispoof.passed if antispoof is not None else None,
-                "spoof_score": antispoof.spoof_score if antispoof is not None else None,
-                "max_spoof_score": antispoof.max_spoof_score if antispoof is not None else None,
-                "frames_processed": antispoof.frames_processed if antispoof is not None else 0,
-                "message": antispoof.message if antispoof is not None else "Preview pending",
-                "preview": antispoof_preview,
-            },
-        }
 
     def _preview_antispoof(
         self,
@@ -945,214 +809,6 @@ class VerificationSessionService:
 
     def _step_label(self, challenge_type: ChallengeType) -> str:
         return challenge_type.value.replace("_", " ")
-
-    def _frame_input_from_payload(self, payload: dict[str, object]) -> FrameInput:
-        return FrameInput(
-            frame_index=int(payload.get("frame_index", 0)),
-            timestamp=str(payload.get("timestamp")) if payload.get("timestamp") else None,
-            image_base64=payload.get("image_base64") if isinstance(payload.get("image_base64"), str) else None,
-            landmarks=payload.get("landmarks") if isinstance(payload.get("landmarks"), dict) else {},
-            metadata=payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {},
-        )
-
-    def _build_frame_bundle(
-        self,
-        session: SessionRecord,
-    ) -> list[
-        tuple[
-            FrameInput,
-            FaceDetectionResult,
-            FaceQualityEvaluation,
-            LandmarkSpotCheckEvaluation,
-        ]
-    ]:
-        frame_bundle: list[
-            tuple[
-                FrameInput,
-                FaceDetectionResult,
-                FaceQualityEvaluation,
-                LandmarkSpotCheckEvaluation,
-            ]
-        ] = []
-        for payload in session.frame_payloads:
-            frame = self._frame_input_from_payload(payload)
-            face_detection = self._face_detection_from_payload(payload, frame)
-            face_quality = self._face_quality_from_payload(payload, frame, face_detection)
-            landmark_spotcheck = self._landmark_spotcheck_from_payload(payload, frame, face_detection)
-            frame_bundle.append((frame, face_detection, face_quality, landmark_spotcheck))
-        return frame_bundle
-
-    def _face_detection_from_payload(
-        self,
-        payload: dict[str, object],
-        frame: FrameInput,
-    ) -> FaceDetectionResult:
-        metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
-        stored = metadata.get(_SERVER_FACE_DETECTION_KEY) if isinstance(metadata, dict) else None
-        if isinstance(stored, dict):
-            raw_bbox = stored.get("bounding_box")
-            bounding_box = None
-            if isinstance(raw_bbox, dict):
-                bounding_box = FaceBoundingBox(
-                    x=float(raw_bbox.get("x", 0.0)),
-                    y=float(raw_bbox.get("y", 0.0)),
-                    width=float(raw_bbox.get("width", 0.0)),
-                    height=float(raw_bbox.get("height", 0.0)),
-                )
-            return FaceDetectionResult(
-                detected=bool(stored.get("detected")),
-                confidence=round(float(stored.get("confidence", 0.0)), 4),
-                frame_index=frame.frame_index,
-                bounding_box=bounding_box,
-                landmarks_source=str(stored.get("landmarks_source", "server")),
-                face_hash=str(stored.get("face_hash")) if stored.get("face_hash") else None,
-                message=str(stored.get("message", "No face detected in frame")),
-            )
-
-        should_detect = bool(
-            frame.image_base64
-            or frame.landmarks
-            or ("force_face_detected" in frame.metadata)
-        )
-        face_detection = (
-            self.face_detector.detect(frame)
-            if should_detect
-            else FaceDetectionResult(
-                detected=False,
-                confidence=0.0,
-                frame_index=frame.frame_index,
-                message="No face detected in frame",
-            )
-        )
-        self._store_face_detection(payload, face_detection)
-        return face_detection
-
-    def _face_quality_from_payload(
-        self,
-        payload: dict[str, object],
-        frame: FrameInput,
-        face_detection: FaceDetectionResult,
-    ) -> FaceQualityEvaluation:
-        metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
-        stored = metadata.get(_SERVER_QUALITY_KEY) if isinstance(metadata, dict) else None
-        if isinstance(stored, dict):
-            return FaceQualityEvaluation(
-                frame_index=frame.frame_index,
-                passed=bool(stored.get("passed")),
-                score=round(float(stored.get("score", 0.0)), 4),
-                message=str(stored.get("message", "Improve frame quality")),
-                primary_issue=str(stored.get("primary_issue")) if stored.get("primary_issue") else None,
-                feedback=[str(item) for item in stored.get("feedback", [])] if isinstance(stored.get("feedback"), list) else [],
-                checks=dict(stored.get("checks", {})) if isinstance(stored.get("checks"), dict) else {},
-                metrics=dict(stored.get("metrics", {})) if isinstance(stored.get("metrics"), dict) else {},
-            )
-
-        face_quality = self.face_quality_evaluator.evaluate(frame, face_detection)
-        self._store_face_quality(payload, face_quality)
-        return face_quality
-
-    def _landmark_spotcheck_from_payload(
-        self,
-        payload: dict[str, object],
-        frame: FrameInput,
-        face_detection: FaceDetectionResult,
-    ) -> LandmarkSpotCheckEvaluation:
-        metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
-        stored = metadata.get(_SERVER_LANDMARK_SPOTCHECK_KEY) if isinstance(metadata, dict) else None
-        if isinstance(stored, dict):
-            return LandmarkSpotCheckEvaluation(
-                enforced=bool(stored.get("enforced")),
-                passed=bool(stored.get("passed")),
-                message=str(stored.get("message", "Landmark spot-check unavailable")),
-                mismatch_pixels=(
-                    round(float(stored["mismatch_pixels"]), 4)
-                    if stored.get("mismatch_pixels") is not None
-                    else None
-                ),
-                threshold_pixels=(
-                    round(float(stored["threshold_pixels"]), 4)
-                    if stored.get("threshold_pixels") is not None
-                    else None
-                ),
-                anchors_used=int(stored.get("anchors_used", 0) or 0),
-                landmark_center=(
-                    dict(stored.get("landmark_center", {}))
-                    if isinstance(stored.get("landmark_center"), dict)
-                    else None
-                ),
-                face_center=(
-                    dict(stored.get("face_center", {}))
-                    if isinstance(stored.get("face_center"), dict)
-                    else None
-                ),
-            )
-
-        landmark_spotcheck = evaluate_landmark_spot_check(
-            frame,
-            face_detection,
-            max_center_mismatch_px=self.settings.verifier_landmark_spotcheck_max_center_mismatch_px,
-        )
-        self._store_landmark_spotcheck(payload, landmark_spotcheck)
-        return landmark_spotcheck
-
-    def _store_face_detection(
-        self,
-        payload: dict[str, object],
-        face_detection: FaceDetectionResult,
-    ) -> None:
-        metadata = dict(payload.get("metadata", {})) if isinstance(payload.get("metadata"), dict) else {}
-        bounding_box = None
-        if face_detection.bounding_box is not None:
-            bounding_box = {
-                "x": face_detection.bounding_box.x,
-                "y": face_detection.bounding_box.y,
-                "width": face_detection.bounding_box.width,
-                "height": face_detection.bounding_box.height,
-            }
-        metadata[_SERVER_FACE_DETECTION_KEY] = {
-            "detected": face_detection.detected,
-            "confidence": face_detection.confidence,
-            "bounding_box": bounding_box,
-            "landmarks_source": face_detection.landmarks_source,
-            "face_hash": face_detection.face_hash,
-            "message": face_detection.message,
-        }
-        payload["metadata"] = metadata
-
-    def _store_face_quality(
-        self,
-        payload: dict[str, object],
-        face_quality: FaceQualityEvaluation,
-    ) -> None:
-        metadata = dict(payload.get("metadata", {})) if isinstance(payload.get("metadata"), dict) else {}
-        metadata[_SERVER_QUALITY_KEY] = {
-            "passed": face_quality.passed,
-            "score": face_quality.score,
-            "message": face_quality.message,
-            "primary_issue": face_quality.primary_issue,
-            "feedback": face_quality.feedback,
-            "checks": face_quality.checks,
-            "metrics": face_quality.metrics,
-        }
-        payload["metadata"] = metadata
-
-    def _store_landmark_spotcheck(
-        self,
-        payload: dict[str, object],
-        landmark_spotcheck: LandmarkSpotCheckEvaluation,
-    ) -> None:
-        metadata = dict(payload.get("metadata", {})) if isinstance(payload.get("metadata"), dict) else {}
-        metadata[_SERVER_LANDMARK_SPOTCHECK_KEY] = {
-            "enforced": landmark_spotcheck.enforced,
-            "passed": landmark_spotcheck.passed,
-            "message": landmark_spotcheck.message,
-            "mismatch_pixels": landmark_spotcheck.mismatch_pixels,
-            "threshold_pixels": landmark_spotcheck.threshold_pixels,
-            "anchors_used": landmark_spotcheck.anchors_used,
-            "landmark_center": landmark_spotcheck.landmark_center,
-            "face_center": landmark_spotcheck.face_center,
-        }
-        payload["metadata"] = metadata
 
     def _pipeline_result(
         self,

@@ -9,8 +9,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "^0.10.22-rc.20250304",
     "@sui-human/shared": "file:../../packages/shared",
+    "@tensorflow-models/face-detection": "^1.0.3",
+    "@tensorflow-models/face-landmarks-detection": "^1.0.6",
+    "@tensorflow/tfjs-backend-cpu": "^4.22.0",
+    "@tensorflow/tfjs-backend-webgl": "^4.22.0",
+    "@tensorflow/tfjs-converter": "^4.22.0",
+    "@tensorflow/tfjs-core": "^4.22.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"

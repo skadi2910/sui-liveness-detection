@@ -12,7 +12,7 @@ The MVP stack is running end-to-end with real models and a hardened multi-step l
 - YOLOv8 face detection (ONNX, `yolov8n-face-lindevs.onnx`)
 - Heuristic face quality gate (OpenCV-based blur / size / angle / brightness checks)
 - Silent-Face passive anti-spoof (ONNX ensemble, official upstream weights)
-- MediaPipe Face Landmarker (browser-side, 468-point landmarks streamed to backend)
+- TensorFlow.js face landmarks (browser-side, landmark telemetry streamed to backend)
 - Active challenge-response liveness — **server-authored randomized 2- or 3-step sequences**
   - Supported steps: `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile`
   - Ordered sequence enforcement with per-step frame windows and completion tracking
@@ -21,14 +21,18 @@ The MVP stack is running end-to-end with real models and a hardened multi-step l
 - Live webcam overlay with guide box, landmark wireframe, and backend face box
 - Sequence timeline UI showing completed, current, and upcoming steps
 - Browser-side `pitch` and `smile_ratio` metrics for nod/smile detection
+- Faster browser-to-backend frame cadence for challenge responsiveness
 - Split Pipeline / Detection / Signals logs with collapsed raw JSON for QA
 - Tuning snapshot panel via `GET /api/health` exposing browser assist defaults and backend liveness thresholds
 - Dedicated `Server Checks` panel showing live backend gate state, quality feedback, anti-spoof scores, and terminal failure reason
 - Frontend split into a client-facing landing surface (`/`) and a dedicated admin/testing console (`/admin`)
+- Admin/testing console refactored into reusable hooks, panel components, and shared utilities
 - Admin/testing console supports QA finalize modes:
   - `full`
   - `liveness_only`
   - `antispoof_only`
+- Browser landmark runtime has been stabilized for the local in-app browser by moving away from the brittle MediaPipe Tasks runtime
+- Blink / nod defaults have been retuned so natural single actions register more reliably during manual QA
 - Session lifecycle, WebSocket flow, calibration harness, and multi-step flow all validated in browser
 
 What follows is a prioritized plan to harden the verifier before adding new layers (Walrus, Seal, SUI contract).
@@ -98,7 +102,7 @@ Frame → YOLOv8 face crop → [NEW] Human Face Gate → Anti-Spoof → Liveness
 
 ### Priority 2 — Finish Hardening the Challenge Protocol
 
-**Status:** Partially complete. The sequence infrastructure is fully built. Two sub-items remain open.
+**Status:** Completed for the current MVP hardening pass. The sequence infrastructure, motion continuity guard, and server-side landmark spot-check are all now in place.
 
 **Already done (do not re-implement):**
 - ✅ Randomized 2- or 3-step sequences server-authored and stored in Redis session
@@ -107,7 +111,7 @@ Frame → YOLOv8 face crop → [NEW] Human Face Gate → Anti-Spoof → Liveness
 - ✅ Automatic session superseding when same wallet starts a new session
 - ✅ `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile` all supported
 
-**Still to build:**
+**Completed sub-items:**
 
 **2c. Motion continuity check** ✅ COMPLETED
 - Require detectable natural face movement (micro-drift, head sway) both before and after each challenge event
