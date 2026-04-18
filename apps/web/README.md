@@ -24,5 +24,5 @@ The current app is a deliberately simple local verifier harness:
 
 Environment variables:
 
-- `NEXT_PUBLIC_VERIFIER_HTTP_URL`
-- `NEXT_PUBLIC_VERIFIER_WS_URL`
+- `NEXT_PUBLIC_VERIFIER_HTTP_URL` (optional; defaults to same-origin `/api`)
+- `NEXT_PUBLIC_VERIFIER_WS_URL` (optional; defaults to same-origin `/ws`)

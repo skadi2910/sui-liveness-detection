@@ -9,10 +9,25 @@ function readNumberEnv(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-export const httpBase =
-  process.env.NEXT_PUBLIC_VERIFIER_HTTP_URL ?? "http://localhost:8000";
-export const wsBase =
-  process.env.NEXT_PUBLIC_VERIFIER_WS_URL ?? httpBase.replace(/^http/, "ws");
+function resolveHttpBase() {
+  if (process.env.NEXT_PUBLIC_VERIFIER_HTTP_URL) {
+    return process.env.NEXT_PUBLIC_VERIFIER_HTTP_URL;
+  }
+  return "";
+}
+
+function resolveWsBase() {
+  if (process.env.NEXT_PUBLIC_VERIFIER_WS_URL) {
+    return process.env.NEXT_PUBLIC_VERIFIER_WS_URL;
+  }
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`;
+  }
+  return "ws://localhost:3000";
+}
+
+export const httpBase = resolveHttpBase();
+export const wsBase = resolveWsBase();
 // Browser-side landmarks stay enabled for the admin harness. The hook uses the
 // TensorFlow.js detector runtime so it stays independent from the brittle
 // MediaPipe Tasks lifecycle that was failing in the local in-app browser.
@@ -46,6 +61,7 @@ export const verificationModeLabels: Record<VerificationMode, string> = {
   full: "Full verification",
   liveness_only: "Liveness-only QA",
   antispoof_only: "Anti-spoof-only QA",
+  deepfake_only: "Deepfake-only QA",
 };
 
 export const verificationModeHints: Record<VerificationMode, string> = {
@@ -54,6 +70,8 @@ export const verificationModeHints: Record<VerificationMode, string> = {
     "Finalize judges only the liveness path; anti-spoof stays informational.",
   antispoof_only:
     "Finalize judges only the anti-spoof path; incomplete challenges do not fail the session.",
+  deepfake_only:
+    "Finalize judges only the deepfake head; challenge and anti-spoof stay informational.",
 };
 
 export const sectionLabels: Record<HarnessLogSection, string> = {

@@ -283,7 +283,7 @@ The current harness implementation can remain the starting point for `admin/page
 2. User reads landing content and starts verification.
 3. Frontend creates a session with `POST /api/sessions`.
 4. Frontend navigates to `/verify/{sessionId}`.
-5. Frontend opens `/ws/verify/{sessionId}`.
+5. Frontend opens `/ws/sessions/{sessionId}/stream`.
 6. Frontend captures frames and streams verification data.
 7. Frontend renders progress and guidance.
 8. Frontend finalizes the session.

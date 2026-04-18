@@ -25,6 +25,7 @@ export const verificationModes = [
   "full",
   "liveness_only",
   "antispoof_only",
+  "deepfake_only",
 ] as const;
 
 export type VerificationMode = (typeof verificationModes)[number];

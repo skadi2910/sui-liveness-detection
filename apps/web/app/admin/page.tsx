@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { VerificationMode } from "@sui-human/shared";
+import type { ChallengeType, VerificationMode } from "@sui-human/shared";
 import {
   AdminHeroPanel,
   BackendHealthPanel,
@@ -19,11 +19,22 @@ import { useHarnessLogs } from "./_hooks/use-harness-logs";
 import { useSessionMetricSummary } from "./_hooks/use-session-metric-summary";
 import { useVerifierSession } from "./_hooks/use-verifier-session";
 import { drawOverlay } from "./_lib/landmarks";
-import type { AttackType, LandmarkMetrics } from "./_lib/types";
+import type {
+  AttackType,
+  ChallengeSequenceMode,
+  LandmarkMetrics,
+} from "./_lib/types";
 
 export default function AdminPage() {
   const [walletAddress, setWalletAddress] = useState("0xtesthuman");
   const [verificationMode, setVerificationMode] = useState<VerificationMode>("full");
+  const [sequenceMode, setSequenceMode] = useState<ChallengeSequenceMode>("fixed");
+  const [fixedSequenceLength, setFixedSequenceLength] = useState(2);
+  const [fixedChallengeSequence, setFixedChallengeSequence] = useState<ChallengeType[]>([
+    "turn_left",
+    "open_mouth",
+    "smile",
+  ]);
   const [autoAssist, setAutoAssist] = useState(false);
   const [forceSpoof, setForceSpoof] = useState(false);
 
@@ -44,6 +55,10 @@ export default function AdminPage() {
   const verifier = useVerifierSession({
     walletAddress,
     verificationMode,
+    challengeSequenceOverride:
+      sequenceMode === "fixed"
+        ? fixedChallengeSequence.slice(0, fixedSequenceLength)
+        : null,
     autoAssist,
     appendLog,
     appendDebugLogs,
@@ -108,6 +123,12 @@ export default function AdminPage() {
           onWalletAddressChange={setWalletAddress}
           verificationMode={verificationMode}
           onVerificationModeChange={setVerificationMode}
+          sequenceMode={sequenceMode}
+          onSequenceModeChange={setSequenceMode}
+          fixedSequenceLength={fixedSequenceLength}
+          onFixedSequenceLengthChange={setFixedSequenceLength}
+          fixedChallengeSequence={fixedChallengeSequence}
+          onFixedChallengeSequenceChange={setFixedChallengeSequence}
           challengeType={verifier.challengeType}
           challengeSequence={verifier.challengeSequence}
           completedChallenges={verifier.completedChallenges}
@@ -136,7 +157,11 @@ export default function AdminPage() {
 
       <section className="grid">
         <BackendHealthPanel health={verifier.health} />
-        <ServerChecksPanel backendDebug={verifier.backendDebug} result={verifier.result} />
+        <ServerChecksPanel
+          backendDebug={verifier.backendDebug}
+          result={verifier.result}
+          reportedAttackType={calibration.attackType}
+        />
         <TuningSnapshotPanel backendTuning={verifier.health?.tuning} />
         <JsonPanel
           title="Landmark Telemetry"

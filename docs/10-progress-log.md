@@ -79,6 +79,8 @@ Validated on April 18, 2026:
   - `full`
   - `liveness_only`
   - `antispoof_only`
+  - `deepfake_only`
+- fixed-sequence admin test mode for repeatable manual QA, with configurable 1-, 2-, or 3-step challenge order
 - browser-side TensorFlow.js face landmarks integration with Turbopack-safe shims around the face-detection runtime
 - landmark telemetry streaming to the verifier
 - on-screen landmark readiness and signal metrics for manual testing
@@ -89,10 +91,17 @@ Validated on April 18, 2026:
 - faster browser-to-backend frame shipping for challenge responsiveness
 - split `Pipeline`, `Detection`, and `Signals` logs with collapsed raw JSON detail
 - dedicated `Server Checks` panel for live backend gate visibility during manual QA
+- terminal result display with structured attack analysis:
+  - failure category
+  - suspected attack family
+  - presentation-attack metrics
+  - deepfake metrics
+  - attack note
 - tuning snapshot panel showing browser assist defaults and backend liveness thresholds
 - slower end-of-sequence pacing with delayed auto-finalize for better QA UX
 - calibration-row export from completed sessions for NDJSON-based threshold tuning
 - completed exports now include the verification evaluation mode used for the session
+- completed exports now include structured attack analysis from the terminal verifier result
 - Dockerfile for local containerized frontend runs
 
 ### Local Run Path
@@ -135,11 +144,15 @@ The one milestone that is still only partially complete is project-native thresh
 - The browser harness can now export completed sessions as NDJSON calibration rows, reducing manual bookkeeping during QA.
 - The browser harness now has a live `Server Checks` panel so manual QA can see the backend face gate, quality gate, liveness step state, anti-spoof scores, and terminal failure reason without inspecting raw JSON.
 - The frontend is now split into a client-facing landing page and a separate admin/testing console.
-- The admin console now supports three finalize modes for QA:
+- The admin console now supports four finalize modes for QA:
   - `full`: fused verifier path
   - `liveness_only`: challenge / gate debugging without anti-spoof verdict blocking the result
   - `antispoof_only`: spoof testing without full challenge completion blocking the result
+  - `deepfake_only`: deepfake-head QA without liveness or Silent-Face verdict blocking the result
 - Only `full` mode is eligible for proof minting; QA-only modes are test surfaces, not production proof flows.
+- The admin console can now run fixed challenge sequences for repeatable testing instead of relying only on randomized friendly sequences.
+- Failed terminal results now carry structured attack-family semantics such as `presentation_attack`, `deepfake_attack`, or `combined_attack_signals` instead of exposing only a raw failure reason.
+- Terminal verifier confidence is now peak-aware, so strong spoof/deepfake peaks cap the exported human-confidence score on failed attack sessions.
 - The backend now blocks replay-like step windows that are too static across consecutive landmark anchor positions, reducing the chance that a still or near-still clip can satisfy a challenge step.
 - The backend now excludes frames whose browser landmark telemetry does not spatially line up with the detected face crop, reducing trust in tampered landmark streams.
 - The browser landmark runtime had to be swapped away from `@mediapipe/tasks-vision` because the local in-app browser repeatedly crashed inside the Tasks runtime; TensorFlow.js now provides the browser landmark layer more reliably in this environment.
@@ -197,12 +210,16 @@ The one milestone that is still only partially complete is project-native thresh
 
 `12-testing-phase-plan.md` is complete enough that the next steps now come from verifier hardening rather than testing-harness construction.
 
-1. Run one more focused manual QA pass from `/admin` using all three finalize modes and the `Server Checks` panel, specifically validating blink and nod behavior after the TensorFlow.js landmark swap and faster frame cadence:
+1. Run one more focused manual QA pass from `/admin` using the fixed-sequence controls, all four finalize modes, and the `Server Checks` panel, specifically validating:
    - `full` for end-to-end fused verification
    - `liveness_only` for challenge and gate tuning
    - `antispoof_only` for spoof-sample evaluation
+   - `deepfake_only` for deepfake-head evaluation
+   - the new same-origin API/WebSocket path when running through the production-parity proxy stack
+   - finalize-time deepfake telemetry in `full`, `antispoof_only`, and `deepfake_only`
+   - structured attack-analysis output and peak-aware confidence on failed attack sessions
 2. Save labeled calibration rows from real browser webcam sessions in `services/verifier/sample-data/calibration/`.
-3. Use the analyzer script plus the live tuning snapshot to tune liveness, anti-spoof, face-quality, motion continuity, and spot-check thresholds from project-native data.
-4. Expand attack-matrix rows with real labeled spoof attempts so release checks measure pass/fail by attack class against project-native samples.
-5. Continue collecting labeled attack-matrix rows and use the current hardening stack to identify whether a dedicated human-face gate or deepfake head is actually justified next.
-6. Start the next engineering phase from `13-improvement-plan.md`, with the likely next implementation target being either the human-face gate or structured attack-matrix benchmarking.
+3. Expand attack-matrix rows with real labeled spoof attempts so release checks measure pass/fail by attack class against project-native samples.
+4. Use the new admin evaluation endpoints plus the analyzer scripts to tune liveness, anti-spoof, face-quality, motion continuity, spot-check, and deepfake thresholds.
+5. Bring up `docker-compose.prod.yml` once Docker is available locally and verify `/`, `/admin`, `/api/health`, session creation, WebSocket streaming, and finalize through the proxy.
+6. Start the next engineering phase from `13-improvement-plan.md`, with the likely next implementation target being either the human-face gate or structured attack-matrix benchmarking after deepfake telemetry is reviewed.

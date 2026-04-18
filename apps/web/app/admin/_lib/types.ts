@@ -1,9 +1,14 @@
 "use client";
 
-import type { ChallengeType, VerificationMode, VerificationResult } from "@sui-human/shared";
+import type {
+  AttackAnalysis,
+  ChallengeType,
+  VerificationMode,
+  VerificationResult,
+} from "@sui-human/shared";
 
 export type ManualAction =
-  | "blink"
+  | "open_mouth"
   | "turn_left"
   | "turn_right"
   | "nod_head"
@@ -47,6 +52,11 @@ export type CalibrationRecord = {
   human: boolean;
   spoof_score: number;
   max_spoof_score: number;
+  deepfake_score?: number | null;
+  max_deepfake_score?: number | null;
+  deepfake_frames_processed?: number;
+  deepfake_enabled?: boolean;
+  attack_analysis?: AttackAnalysis | null;
   confidence: number;
   challenge_progress: number;
   landmark_metrics: Record<string, number | null>;
@@ -54,6 +64,8 @@ export type CalibrationRecord = {
   source: string;
   notes: string;
 };
+
+export type ChallengeSequenceMode = "random" | "fixed";
 
 export type LandmarkEngineState = "idle" | "loading" | "ready" | "error";
 

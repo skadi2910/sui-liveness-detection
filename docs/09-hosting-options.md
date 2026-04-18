@@ -24,6 +24,14 @@ The current Compose setup is ideal for local development, but not yet a producti
 - there is no production Compose manifest yet
 - there is no VPS bootstrap or runbook yet
 
+Implementation status as of April 18, 2026:
+
+- `docker-compose.prod.yml` now exists for local production-parity testing
+- `proxy/nginx.conf` now routes `/` to Next.js and `/api/*` plus `/ws/*` to the verifier
+- `apps/web/Dockerfile.prod` builds a production `next build` + `next start` image using standalone output
+- `services/verifier/Dockerfile` now includes the system libraries required by OpenCV / ONNX Runtime
+- browser-facing verifier URLs now default to same-origin routing when public env overrides are unset
+
 That means the right question for MVP is not "which sophisticated platform should we use?"
 It is "what is the smallest stable Docker deployment we can support with confidence?"
 
@@ -57,6 +65,7 @@ It is "what is the smallest stable Docker deployment we can support with confide
 - continue using the current root `docker-compose.yml`
 - verify webcam capture, REST session creation, WebSocket flow, and model loading locally
 - use this phase to harden the container images
+- use `docker-compose.prod.yml` for proxy-based production-parity smoke tests
 
 ### Stage 2: Single-VPS Docker MVP
 

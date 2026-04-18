@@ -20,7 +20,9 @@ The current backend is a runnable FastAPI MVP scaffold with:
 - `POST /api/sessions`
 - `GET /api/sessions/{session_id}`
 - `GET /api/health`
-- `GET /ws/verify/{session_id}`
+- `GET /ws/sessions/{session_id}/stream`
+- compatibility alias: `GET /ws/verify/{session_id}`
+- admin QA endpoints for frame/session evaluation and dataset append flows
 
 The active pipeline is deterministic and mock-driven for local testing:
 

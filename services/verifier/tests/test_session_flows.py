@@ -5,14 +5,20 @@ from fastapi.testclient import TestClient
 from app.sessions.models import ChallengeType
 
 
-def _session_payload(wallet_address: str = "0xtest-wallet") -> dict[str, object]:
-    return {
+def _session_payload(
+    wallet_address: str = "0xtest-wallet",
+    challenge_sequence: list[str] | None = None,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
         "wallet_address": wallet_address,
         "client": {
             "platform": "test-suite",
             "user_agent": "pytest",
         },
     }
+    if challenge_sequence is not None:
+        payload["challenge_sequence"] = challenge_sequence
+    return payload
 
 
 def _frame_event(metadata: dict[str, object]) -> dict[str, object]:
@@ -88,17 +94,33 @@ def test_create_session_returns_expected_contract(client: TestClient) -> None:
 
     assert payload["session_id"].startswith("sess_")
     assert payload["status"] == "created"
-    assert payload["challenge_type"] in {"blink_twice", "turn_left", "turn_right", "nod_head", "smile"}
+    assert payload["challenge_type"] in {"turn_left", "turn_right", "nod_head", "smile", "open_mouth"}
     assert 2 <= payload["total_challenges"] <= 3
     assert len(payload["challenge_sequence"]) == payload["total_challenges"]
-    assert payload["ws_url"] == f"/ws/verify/{payload['session_id']}"
-    assert "open_mouth" not in payload["challenge_sequence"]
+    assert payload["ws_url"] == f"/ws/sessions/{payload['session_id']}/stream"
+    assert "blink_twice" not in payload["challenge_sequence"]
 
     session_response = client.get(f"/api/sessions/{payload['session_id']}")
     assert session_response.status_code == 200
     session_payload = session_response.json()
     assert session_payload["status"] == "created"
     assert session_payload["challenge_sequence"] == payload["challenge_sequence"]
+
+
+def test_create_session_accepts_fixed_sequence_override(client: TestClient) -> None:
+    response = client.post(
+        "/api/sessions",
+        json=_session_payload(
+            "0xfixed-sequence-wallet",
+            challenge_sequence=["turn_left", "open_mouth", "smile"],
+        ),
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["challenge_sequence"] == ["turn_left", "open_mouth", "smile"]
+    assert payload["challenge_type"] == "turn_left"
+    assert payload["total_challenges"] == 3
 
 
 def test_health_exposes_tuning_snapshot(client: TestClient) -> None:
@@ -117,6 +139,9 @@ def test_health_exposes_tuning_snapshot(client: TestClient) -> None:
     assert payload["tuning"]["motion_min_displacement"] == 0.002
     assert payload["tuning"]["motion_max_still_ratio"] == 0.8
     assert payload["tuning"]["motion_min_transitions"] == 4
+    assert payload["model_details"]["deepfake"]["enabled"] is True
+    assert payload["model_details"]["deepfake"]["ready"] is True
+    assert payload["tuning"]["deepfake_threshold"] == 0.65
 
 
 def test_create_session_supersedes_existing_active_session(client: TestClient) -> None:
@@ -147,7 +172,7 @@ def test_calibration_append_persists_ndjson_row(client: TestClient) -> None:
             "record": {
                 "sample_id": "sess_auto_saved",
                 "label": "human",
-                "challenge_type": "blink_twice",
+                "challenge_type": "open_mouth",
                 "status": "verified",
                 "human": True,
             }
@@ -162,6 +187,12 @@ def test_calibration_append_persists_ndjson_row(client: TestClient) -> None:
     output_path = client.app.state.session_service.calibration_output_path
     saved_text = output_path.read_text(encoding="utf-8")
     assert '"sample_id": "sess_auto_saved"' in saved_text
+
+    admin_response = client.post(
+        "/api/admin/calibration/append",
+        json={"record": {"sample_id": "sess_admin_saved", "label": "human"}},
+    )
+    assert admin_response.status_code == 200
 
 
 def test_attack_matrix_append_persists_ndjson_row(client: TestClient) -> None:
@@ -188,9 +219,85 @@ def test_attack_matrix_append_persists_ndjson_row(client: TestClient) -> None:
     saved_text = output_path.read_text(encoding="utf-8")
     assert '"attack_type": "screen_replay"' in saved_text
 
+    admin_response = client.post(
+        "/api/admin/attack-matrix/append",
+        json={"record": {"sample_id": "sess_attack_admin_saved", "attack_type": "print"}},
+    )
+    assert admin_response.status_code == 200
+
+
+def test_admin_evaluate_frame_returns_stage_outputs(client: TestClient) -> None:
+    response = client.post(
+        "/api/admin/evaluate/frame",
+        json={
+            "challenge_type": "open_mouth",
+            "mode": "full",
+            "frame": {
+                "frame_index": 0,
+                "metadata": {
+                    "force_face_detected": True,
+                    "force_quality_pass": True,
+                    "force_spoof_score": 0.04,
+                },
+                "landmarks": {
+                    "mouth_open": True,
+                    "point_count": 478,
+                    "frame_width": 640,
+                    "frame_height": 480,
+                },
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["accepted_for_liveness"] is True
+    assert payload["face_detection"]["detected"] is True
+    assert payload["quality"]["passed"] is True
+    assert payload["antispoof"]["spoof_score"] == 0.04
+    assert payload["deepfake"]["enabled"] is True
+    assert payload["deepfake"]["frames_processed"] == 1
+
+
+def test_admin_evaluate_session_returns_verdict_preview(client: TestClient) -> None:
+    response = client.post(
+        "/api/admin/evaluate/session",
+        json={
+            "challenge_type": "turn_right",
+            "mode": "full",
+            "frames": [
+                {
+                    "frame_index": index,
+                    "metadata": {
+                        "force_face_detected": True,
+                        "force_quality_pass": True,
+                        "force_spoof_score": 0.03,
+                        "head_turn": "right",
+                    },
+                    "landmarks": {
+                        "point_count": 478,
+                        "frame_width": 640,
+                        "frame_height": 480,
+                    },
+                }
+                for index in range(4)
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["frames_processed"] == 4
+    assert payload["accepted_frame_indices"] == [0, 1, 2, 3]
+    assert payload["liveness"]["passed"] is True
+    assert payload["verdict_preview"]["human"] is True
+    assert payload["verdict_preview"]["attack_analysis"]["suspected_attack_family"] == "none"
+    assert payload["deepfake"]["enabled"] is True
+    assert payload["deepfake"]["frames_processed"] == 4
+
 
 def test_websocket_flow_supports_two_step_sequence(client: TestClient) -> None:
-    _force_sequence(client, [ChallengeType.BLINK_TWICE, ChallengeType.TURN_RIGHT])
+    _force_sequence(client, [ChallengeType.OPEN_MOUTH, ChallengeType.TURN_RIGHT])
     create_response = client.post("/api/sessions", json=_session_payload("0xverified-wallet"))
     session = create_response.json()
 
@@ -207,8 +314,8 @@ def test_websocket_flow_supports_two_step_sequence(client: TestClient) -> None:
                 last_progress = progress["payload"]
 
         assert last_progress is not None
-        assert last_progress["challenge_sequence"] == ["blink_twice", "turn_right"]
-        assert last_progress["completed_challenges"] == ["blink_twice", "turn_right"]
+        assert last_progress["challenge_sequence"] == ["open_mouth", "turn_right"]
+        assert last_progress["completed_challenges"] == ["open_mouth", "turn_right"]
         assert last_progress["current_challenge_index"] == 1
         assert last_progress["step_status"] == "completed"
         assert last_progress["challenge_type"] == "turn_right"
@@ -224,11 +331,21 @@ def test_websocket_flow_supports_two_step_sequence(client: TestClient) -> None:
         assert terminal_event["type"] == "verified"
         assert terminal_event["payload"]["human"] is True
         assert terminal_event["payload"]["status"] == "verified"
-        assert terminal_event["payload"]["challenge_sequence"] == ["blink_twice", "turn_right"]
+        assert terminal_event["payload"]["challenge_sequence"] == ["open_mouth", "turn_right"]
+        assert terminal_event["payload"]["deepfake_enabled"] is True
+
+
+def test_legacy_websocket_alias_still_works(client: TestClient) -> None:
+    response = client.post("/api/sessions", json=_session_payload("0xlegacy-alias"))
+    session = response.json()
+
+    with client.websocket_connect(f"/ws/verify/{session['session_id']}") as websocket:
+        ready_event = websocket.receive_json()
+        assert ready_event["type"] == "session_ready"
 
 
 def test_websocket_flow_supports_three_step_sequence(client: TestClient) -> None:
-    _force_sequence(client, [ChallengeType.NOD_HEAD, ChallengeType.SMILE, ChallengeType.BLINK_TWICE])
+    _force_sequence(client, [ChallengeType.NOD_HEAD, ChallengeType.SMILE, ChallengeType.OPEN_MOUTH])
     create_response = client.post("/api/sessions", json=_session_payload("0xthree-step-wallet"))
     session = create_response.json()
 
@@ -248,17 +365,17 @@ def test_websocket_flow_supports_three_step_sequence(client: TestClient) -> None
         assert terminal_event["payload"]["challenge_sequence"] == [
             "nod_head",
             "smile",
-            "blink_twice",
+            "open_mouth",
         ]
         assert terminal_event["payload"]["completed_challenges"] == [
             "nod_head",
             "smile",
-            "blink_twice",
+            "open_mouth",
         ]
 
 
 def test_liveness_only_mode_can_pass_despite_spoof_score(client: TestClient) -> None:
-    _force_sequence(client, [ChallengeType.BLINK_TWICE, ChallengeType.TURN_RIGHT])
+    _force_sequence(client, [ChallengeType.OPEN_MOUTH, ChallengeType.TURN_RIGHT])
     create_response = client.post("/api/sessions", json=_session_payload("0xliveness-only-wallet"))
     session = create_response.json()
 
@@ -280,7 +397,7 @@ def test_liveness_only_mode_can_pass_despite_spoof_score(client: TestClient) -> 
 
 
 def test_antispoof_only_mode_can_pass_without_completed_challenge_sequence(client: TestClient) -> None:
-    _force_sequence(client, [ChallengeType.TURN_LEFT, ChallengeType.BLINK_TWICE])
+    _force_sequence(client, [ChallengeType.TURN_LEFT, ChallengeType.OPEN_MOUTH])
     create_response = client.post("/api/sessions", json=_session_payload("0xantispoof-only-wallet"))
     session = create_response.json()
 
@@ -312,8 +429,77 @@ def test_antispoof_only_mode_can_pass_without_completed_challenge_sequence(clien
         assert terminal_event["payload"]["completed_challenges"] == []
 
 
+def test_deepfake_only_mode_can_pass_without_completed_challenge_sequence(client: TestClient) -> None:
+    _force_sequence(client, [ChallengeType.TURN_LEFT, ChallengeType.OPEN_MOUTH])
+    create_response = client.post("/api/sessions", json=_session_payload("0xdeepfake-only-wallet"))
+    session = create_response.json()
+
+    with client.websocket_connect(session["ws_url"]) as websocket:
+        assert websocket.receive_json()["type"] == "session_ready"
+
+        for index in range(5):
+            _send_frame_and_receive_progress(
+                websocket,
+                _frame_event(
+                    {
+                        "force_face_detected": True,
+                        "force_quality_pass": True,
+                        "force_spoof_score": 0.02,
+                        "force_deepfake_score": 0.18,
+                        "frame_number": index + 1,
+                        "frame_width": 640,
+                        "frame_height": 480,
+                    }
+                ),
+            )
+
+        websocket.send_json({"type": "finalize", "mode": "deepfake_only"})
+        assert websocket.receive_json()["type"] == "processing"
+        terminal_event = websocket.receive_json()
+
+        assert terminal_event["type"] == "verified"
+        assert terminal_event["payload"]["human"] is True
+        assert terminal_event["payload"]["evaluation_mode"] == "deepfake_only"
+        assert terminal_event["payload"]["completed_challenges"] == []
+        assert terminal_event["payload"]["deepfake_score"] == 0.18
+
+
+def test_deepfake_only_mode_fails_when_deepfake_score_is_high(client: TestClient) -> None:
+    _force_sequence(client, [ChallengeType.TURN_LEFT, ChallengeType.OPEN_MOUTH])
+    create_response = client.post("/api/sessions", json=_session_payload("0xdeepfake-only-fail-wallet"))
+    session = create_response.json()
+
+    with client.websocket_connect(session["ws_url"]) as websocket:
+        assert websocket.receive_json()["type"] == "session_ready"
+
+        for index in range(5):
+            _send_frame_and_receive_progress(
+                websocket,
+                _frame_event(
+                    {
+                        "force_face_detected": True,
+                        "force_quality_pass": True,
+                        "force_spoof_score": 0.02,
+                        "force_deepfake_score": 0.92,
+                        "frame_number": index + 1,
+                        "frame_width": 640,
+                        "frame_height": 480,
+                    }
+                ),
+            )
+
+        websocket.send_json({"type": "finalize", "mode": "deepfake_only"})
+        assert websocket.receive_json()["type"] == "processing"
+        terminal_event = websocket.receive_json()
+
+        assert terminal_event["type"] == "failed"
+        assert terminal_event["payload"]["human"] is False
+        assert terminal_event["payload"]["evaluation_mode"] == "deepfake_only"
+        assert terminal_event["payload"]["failure_reason"] == "deepfake_detected"
+
+
 def test_order_enforcement_prevents_later_step_from_counting_early(client: TestClient) -> None:
-    _force_sequence(client, [ChallengeType.TURN_LEFT, ChallengeType.BLINK_TWICE])
+    _force_sequence(client, [ChallengeType.TURN_LEFT, ChallengeType.OPEN_MOUTH])
     create_response = client.post("/api/sessions", json=_session_payload("0xorder-wallet"))
     session = create_response.json()
 
@@ -321,7 +507,7 @@ def test_order_enforcement_prevents_later_step_from_counting_early(client: TestC
         assert websocket.receive_json()["type"] == "session_ready"
 
         early_progress = None
-        for event in _challenge_frames("blink_twice", spoof_score=0.02):
+        for event in _challenge_frames("open_mouth", spoof_score=0.02):
             _, progress = _send_frame_and_receive_progress(websocket, event)
             early_progress = progress["payload"]
 
@@ -330,7 +516,7 @@ def test_order_enforcement_prevents_later_step_from_counting_early(client: TestC
 
 
 def test_landmark_spotcheck_rejects_mismatched_landmark_telemetry(client: TestClient) -> None:
-    _force_sequence(client, [ChallengeType.TURN_LEFT, ChallengeType.BLINK_TWICE])
+    _force_sequence(client, [ChallengeType.TURN_LEFT, ChallengeType.OPEN_MOUTH])
     create_response = client.post("/api/sessions", json=_session_payload("0xspotcheck-wallet"))
     session = create_response.json()
 
@@ -389,11 +575,11 @@ def test_landmark_spotcheck_rejects_mismatched_landmark_telemetry(client: TestCl
         assert turn_progress is not None
         assert turn_progress["payload"]["current_challenge_index"] == 1
         assert turn_progress["payload"]["completed_challenges"] == ["turn_left"]
-        assert turn_progress["payload"]["challenge_type"] == "blink_twice"
+        assert turn_progress["payload"]["challenge_type"] == "open_mouth"
 
 
 def test_landmark_spotcheck_becomes_enforced_after_landmark_event(client: TestClient) -> None:
-    _force_sequence(client, [ChallengeType.TURN_LEFT, ChallengeType.BLINK_TWICE])
+    _force_sequence(client, [ChallengeType.TURN_LEFT, ChallengeType.OPEN_MOUTH])
     create_response = client.post("/api/sessions", json=_session_payload("0xspotcheck-enforced-wallet"))
     session = create_response.json()
 
@@ -563,3 +749,29 @@ def test_websocket_flow_emits_failed_terminal_event_for_spoof(client: TestClient
         assert terminal_event["payload"]["human"] is False
         assert terminal_event["payload"]["status"] == "failed"
         assert terminal_event["payload"]["failure_reason"] == "spoof_detected"
+        assert terminal_event["payload"]["attack_analysis"]["suspected_attack_family"] == "presentation_attack"
+        assert terminal_event["payload"]["attack_analysis"]["presentation_attack_detected"] is True
+        assert terminal_event["payload"]["attack_analysis"]["deepfake_detected"] is False
+
+
+def test_terminal_event_marks_combined_attack_signals_when_both_models_flag(client: TestClient) -> None:
+    _force_sequence(client, [ChallengeType.OPEN_MOUTH, ChallengeType.TURN_RIGHT])
+    create_response = client.post("/api/sessions", json=_session_payload("0xcombined-attack-wallet"))
+    session = create_response.json()
+
+    with client.websocket_connect(session["ws_url"]) as websocket:
+        assert websocket.receive_json()["type"] == "session_ready"
+
+        for challenge in session["challenge_sequence"]:
+            for event in _challenge_frames(challenge, spoof_score=0.96):
+                event["metadata"]["force_deepfake_score"] = 0.91
+                _send_frame_and_receive_progress(websocket, event)
+
+        websocket.send_json({"type": "finalize"})
+        assert websocket.receive_json()["type"] == "processing"
+        terminal_event = websocket.receive_json()
+
+        assert terminal_event["type"] == "failed"
+        assert terminal_event["payload"]["attack_analysis"]["suspected_attack_family"] == "combined_attack_signals"
+        assert terminal_event["payload"]["attack_analysis"]["presentation_attack_detected"] is True
+        assert terminal_event["payload"]["attack_analysis"]["deepfake_detected"] is True

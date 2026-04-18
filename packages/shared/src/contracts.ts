@@ -59,6 +59,15 @@ export interface VerificationDebugPayload {
     message?: string;
     preview?: boolean;
   };
+  deepfake?: {
+    enabled?: boolean;
+    enforced?: boolean;
+    score?: number | null;
+    max_score?: number | null;
+    frames_processed?: number;
+    message?: string;
+    preview?: boolean;
+  };
 }
 
 export interface ClientInfo {
@@ -66,9 +75,22 @@ export interface ClientInfo {
   user_agent: string;
 }
 
+export interface AttackAnalysis {
+  failure_category: string;
+  suspected_attack_family: string;
+  presentation_attack_detected: boolean;
+  presentation_attack_score: number;
+  presentation_attack_peak?: number | null;
+  deepfake_detected: boolean;
+  deepfake_score?: number | null;
+  deepfake_peak?: number | null;
+  note: string;
+}
+
 export interface CreateSessionRequest {
   wallet_address: string;
   client: ClientInfo;
+  challenge_sequence?: ChallengeType[];
 }
 
 export interface CreateSessionResponse {
@@ -137,6 +159,12 @@ export interface VerificationResult {
   confidence: number;
   spoof_score: number;
   max_spoof_score?: number;
+  deepfake_score?: number | null;
+  max_deepfake_score?: number | null;
+  deepfake_frames_processed?: number;
+  deepfake_message?: string | null;
+  deepfake_enabled?: boolean;
+  attack_analysis?: AttackAnalysis | null;
   proof_id?: string;
   blob_id?: string;
   expires_at?: string;
@@ -163,6 +191,27 @@ export interface HealthResponse {
   chain_adapter: HealthComponentStatus;
   storage_adapter: HealthComponentStatus;
   encryption_adapter: HealthComponentStatus;
+  model_details?: {
+    face_detector?: {
+      ready?: boolean;
+      runtime?: string;
+    };
+    antispoof?: {
+      ready?: boolean;
+      runtime?: string;
+      threshold?: number;
+      hard_fail_threshold?: number;
+    };
+    deepfake?: {
+      enabled?: boolean;
+      ready?: boolean;
+      runtime?: string;
+      threshold?: number;
+      enforced?: boolean;
+      sample_frames?: number;
+      model_hash?: string | null;
+    };
+  };
   tuning?: {
     minimum_step_frames?: number;
     blink_closed_threshold?: number;
@@ -179,5 +228,62 @@ export interface HealthResponse {
     nod_pitch_threshold?: number;
     nod_pitch_ratio_threshold?: number;
     smile_ratio_threshold?: number;
+    deepfake_threshold?: number;
+    deepfake_sample_frames?: number;
+    deepfake_enforced?: boolean;
+  };
+}
+
+export interface AdminFramePayload {
+  frame_index?: number;
+  timestamp?: string;
+  image_base64?: string | null;
+  landmarks?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AdminEvaluateFrameRequest {
+  frame: AdminFramePayload;
+  challenge_type?: ChallengeType;
+  mode?: VerificationMode;
+}
+
+export interface AdminEvaluateFrameResponse {
+  challenge_type: ChallengeType;
+  evaluation_mode: VerificationMode;
+  accepted_for_liveness: boolean;
+  accepted_for_spoof: boolean;
+  face_detection: Record<string, unknown>;
+  quality: Record<string, unknown>;
+  landmark_spotcheck: Record<string, unknown>;
+  liveness: Record<string, unknown>;
+  antispoof: Record<string, unknown>;
+  deepfake: Record<string, unknown>;
+}
+
+export interface AdminEvaluateSessionRequest {
+  frames: AdminFramePayload[];
+  challenge_type?: ChallengeType;
+  mode?: VerificationMode;
+}
+
+export interface AdminEvaluateSessionResponse {
+  challenge_type: ChallengeType;
+  evaluation_mode: VerificationMode;
+  frames_processed: number;
+  accepted_frame_indices: number[];
+  face_detected: boolean;
+  quality_frames_available: boolean;
+  face_detection: Record<string, unknown>;
+  quality: Record<string, unknown>;
+  landmark_spotcheck: Record<string, unknown>;
+  liveness: Record<string, unknown>;
+  antispoof: Record<string, unknown>;
+  deepfake: Record<string, unknown>;
+  verdict_preview: {
+    human: boolean;
+    failure_reason: string | null;
+    mode: VerificationMode;
+    attack_analysis?: AttackAnalysis | null;
   };
 }

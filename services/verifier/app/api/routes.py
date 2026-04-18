@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends, Request, status
 
 from app.sessions.models import (
+    AdminEvaluateFrameRequest,
+    AdminEvaluateFrameResponse,
+    AdminEvaluateSessionRequest,
+    AdminEvaluateSessionResponse,
     CalibrationAppendRequest,
     CalibrationAppendResponse,
     HealthResponse,
@@ -56,3 +60,35 @@ async def append_attack_matrix_record(
     service: VerificationSessionService = Depends(get_service),
 ) -> CalibrationAppendResponse:
     return await service.append_attack_matrix_record(payload.record)
+
+
+@router.post("/admin/calibration/append", response_model=CalibrationAppendResponse)
+async def append_calibration_record_admin(
+    payload: CalibrationAppendRequest,
+    service: VerificationSessionService = Depends(get_service),
+) -> CalibrationAppendResponse:
+    return await service.append_calibration_record(payload.record)
+
+
+@router.post("/admin/attack-matrix/append", response_model=CalibrationAppendResponse)
+async def append_attack_matrix_record_admin(
+    payload: CalibrationAppendRequest,
+    service: VerificationSessionService = Depends(get_service),
+) -> CalibrationAppendResponse:
+    return await service.append_attack_matrix_record(payload.record)
+
+
+@router.post("/admin/evaluate/frame", response_model=AdminEvaluateFrameResponse)
+async def evaluate_frame(
+    payload: AdminEvaluateFrameRequest,
+    service: VerificationSessionService = Depends(get_service),
+) -> AdminEvaluateFrameResponse:
+    return await service.evaluate_frame(payload)
+
+
+@router.post("/admin/evaluate/session", response_model=AdminEvaluateSessionResponse)
+async def evaluate_session(
+    payload: AdminEvaluateSessionRequest,
+    service: VerificationSessionService = Depends(get_service),
+) -> AdminEvaluateSessionResponse:
+    return await service.evaluate_session(payload)

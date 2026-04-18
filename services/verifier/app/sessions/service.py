@@ -15,6 +15,7 @@ from app.adapters.proof_minter import ProofMinter
 from app.core.config import Settings, resolve_data_path
 from app.core.logging import get_logger
 from app.pipeline.antispoof import AntiSpoofEvaluator
+from app.pipeline.deepfake import DeepfakeEvaluator
 from app.pipeline.evidence import EvidenceAssembler
 from app.pipeline.face import FaceDetector
 from app.pipeline.landmark_metrics import LandmarkSpotCheckEvaluation
@@ -23,6 +24,7 @@ from app.pipeline.quality import FaceQualityEvaluation, FaceQualityEvaluator
 from app.pipeline.types import (
     AntiSpoofEvaluation,
     ChallengeType as PipelineChallengeType,
+    DeepfakeEvaluation,
     FaceDetectionResult,
     FrameInput,
     LivenessEvaluation,
@@ -30,6 +32,7 @@ from app.pipeline.types import (
 )
 from app.sessions.debug import build_session_debug_payload
 from app.sessions.finalize import (
+    build_attack_analysis,
     calculate_terminal_confidence,
     determine_finalization_decision,
 )
@@ -39,6 +42,10 @@ from app.sessions.frame_pipeline import (
 )
 from app.sessions.models import (
     CalibrationAppendResponse,
+    AdminEvaluateFrameRequest,
+    AdminEvaluateFrameResponse,
+    AdminEvaluateSessionRequest,
+    AdminEvaluateSessionResponse,
     ChallengeType,
     ClientEventType,
     HealthResponse,
@@ -61,6 +68,17 @@ _HEAD_MOTION_CHALLENGES = {
     ChallengeType.TURN_RIGHT,
     ChallengeType.NOD_HEAD,
 }
+_FRIENDLY_EXPRESSION_CHALLENGES = {
+    ChallengeType.SMILE,
+    ChallengeType.OPEN_MOUTH,
+}
+_FRIENDLY_CHALLENGE_POOL = [
+    ChallengeType.TURN_LEFT,
+    ChallengeType.TURN_RIGHT,
+    ChallengeType.NOD_HEAD,
+    ChallengeType.SMILE,
+    ChallengeType.OPEN_MOUTH,
+]
 _ANTI_SPOOF_PREVIEW_FRAME_LIMIT = 8
 
 
@@ -73,6 +91,7 @@ class VerificationSessionService:
         face_quality_evaluator: FaceQualityEvaluator,
         liveness_evaluator: LivenessEvaluator,
         antispoof_evaluator: AntiSpoofEvaluator,
+        deepfake_evaluator: DeepfakeEvaluator,
         evidence_assembler: EvidenceAssembler,
         proof_minter: ProofMinter,
         evidence_store: EvidenceStore,
@@ -87,10 +106,12 @@ class VerificationSessionService:
         self.face_detector = face_detector
         self.liveness_evaluator = liveness_evaluator
         self.antispoof_evaluator = antispoof_evaluator
+        self.deepfake_evaluator = deepfake_evaluator
         self.evidence_assembler = evidence_assembler
         self.proof_minter = proof_minter
         self.evidence_store = evidence_store
         self.evidence_encryptor = evidence_encryptor
+        self.deepfake_sample_frames = max(settings.verifier_deepfake_sample_frames, 1)
         self.frame_evaluator = SessionFrameEvaluator(
             face_detector=face_detector,
             face_quality_evaluator=face_quality_evaluator,
@@ -117,6 +138,111 @@ class VerificationSessionService:
             record=record,
             output_path=self.attack_matrix_output_path,
             log_label="attack matrix row appended",
+        )
+
+    async def evaluate_frame(
+        self,
+        payload: AdminEvaluateFrameRequest,
+    ) -> AdminEvaluateFrameResponse:
+        frame_payload = self._admin_frame_payload(payload.frame)
+        frame_bundle = self.frame_evaluator.build_frame_bundle([frame_payload])
+        frame, face_detection, face_quality, landmark_spotcheck = frame_bundle[0]
+        accepted = face_detection.detected and face_quality.passed and landmark_spotcheck.passed
+        liveness = self.liveness_evaluator.evaluate(
+            self._to_pipeline_challenge(payload.challenge_type),
+            [frame] if accepted else [],
+        )
+        antispoof = self.antispoof_evaluator.evaluate(
+            [frame] if accepted else [],
+            [face_detection] if accepted else [],
+        )
+        deepfake = self.deepfake_evaluator.evaluate(
+            [frame] if accepted else [],
+            [face_detection] if accepted else [],
+            max_samples=1,
+        )
+        return AdminEvaluateFrameResponse(
+            challenge_type=payload.challenge_type,
+            evaluation_mode=payload.mode,
+            accepted_for_liveness=accepted,
+            accepted_for_spoof=accepted,
+            face_detection=self._face_detection_payload(face_detection),
+            quality=self._quality_payload(face_quality),
+            landmark_spotcheck=self._spotcheck_payload(landmark_spotcheck),
+            liveness=self._liveness_payload(liveness),
+            antispoof=self._antispoof_payload(antispoof, preview=True),
+            deepfake=self._deepfake_payload(deepfake),
+        )
+
+    async def evaluate_session(
+        self,
+        payload: AdminEvaluateSessionRequest,
+    ) -> AdminEvaluateSessionResponse:
+        frame_bundle = self._admin_frame_bundle(payload.frames)
+        (
+            frames,
+            face_detections,
+            quality_evaluations,
+            landmark_spotchecks,
+            usable_frames,
+            usable_face_detections,
+            accepted_indices,
+        ) = self._split_frame_bundle(frame_bundle)
+        face_detected = any(result.detected for result in face_detections)
+        quality_frames_available = bool(usable_frames)
+        liveness = self.liveness_evaluator.evaluate(
+            self._to_pipeline_challenge(payload.challenge_type),
+            usable_frames,
+        )
+        antispoof = self.antispoof_evaluator.evaluate(usable_frames, usable_face_detections)
+        deepfake = self.deepfake_evaluator.evaluate(
+            usable_frames,
+            usable_face_detections,
+            max_samples=self.deepfake_sample_frames,
+        )
+        decision = determine_finalization_decision(
+            mode=payload.mode,
+            face_detected=face_detected,
+            quality_frames_available=quality_frames_available,
+            liveness_passed=liveness.passed,
+            antispoof_passed=antispoof.passed,
+            deepfake_enabled=deepfake.enabled,
+            deepfake_passed=deepfake.passed,
+            deepfake_enforced=(
+                payload.mode == VerificationMode.DEEPFAKE_ONLY
+                or (deepfake.enabled and deepfake.enforced and payload.mode != VerificationMode.LIVENESS_ONLY)
+            ),
+        )
+        attack_analysis = build_attack_analysis(
+            human=decision.human,
+            failure_reason=decision.failure_reason,
+            spoof_score=antispoof.spoof_score,
+            max_spoof_score=antispoof.max_spoof_score,
+            antispoof_passed=antispoof.passed,
+            deepfake_enabled=deepfake.enabled,
+            deepfake_score=deepfake.deepfake_score,
+            max_deepfake_score=deepfake.max_deepfake_score,
+            deepfake_passed=deepfake.passed,
+        )
+        return AdminEvaluateSessionResponse(
+            challenge_type=payload.challenge_type,
+            evaluation_mode=payload.mode,
+            frames_processed=len(frames),
+            accepted_frame_indices=accepted_indices,
+            face_detected=face_detected,
+            quality_frames_available=quality_frames_available,
+            face_detection=self._face_detection_payload(face_detections[-1] if face_detections else None),
+            quality=self._quality_payload(quality_evaluations[-1] if quality_evaluations else None),
+            landmark_spotcheck=self._spotcheck_payload(landmark_spotchecks[-1] if landmark_spotchecks else None),
+            liveness=self._liveness_payload(liveness),
+            antispoof=self._antispoof_payload(antispoof, preview=False),
+            deepfake=self._deepfake_payload(deepfake),
+            verdict_preview={
+                "human": decision.human,
+                "failure_reason": decision.failure_reason,
+                "mode": payload.mode.value,
+                "attack_analysis": attack_analysis,
+            },
         )
 
     async def _append_ndjson_record(
@@ -171,7 +297,7 @@ class VerificationSessionService:
 
         now = datetime.now(tz=UTC)
         session_id = f"sess_{uuid4().hex[:12]}"
-        challenge_sequence = self._select_challenge_sequence(session_id)
+        challenge_sequence = self._resolve_challenge_sequence(payload, session_id)
         session = SessionRecord(
             session_id=session_id,
             wallet_address=payload.wallet_address,
@@ -210,7 +336,7 @@ class VerificationSessionService:
             total_challenges=session.total_challenges,
             completed_challenges=session.completed_challenges,
             expires_at=session.expires_at,
-            ws_url=f"/ws/verify/{session.session_id}",
+            ws_url=f"/ws/sessions/{session.session_id}/stream",
         )
 
     async def get_session(self, session_id: str) -> SessionResponse:
@@ -345,6 +471,11 @@ class VerificationSessionService:
         quality_frames_available = bool(usable_frames)
         liveness = self._final_liveness_evaluation(session, usable_frames if usable_frames else frames)
         antispoof = self.antispoof_evaluator.evaluate(usable_frames, usable_face_detections)
+        deepfake = self.deepfake_evaluator.evaluate(
+            usable_frames,
+            usable_face_detections,
+            max_samples=self.deepfake_sample_frames,
+        )
         self.logger.info(
             "anti-spoof verdict",
             context={
@@ -355,6 +486,18 @@ class VerificationSessionService:
                 "flagged_frames": antispoof.flagged_frames,
             },
         )
+        self.logger.info(
+            "deepfake verdict",
+            context={
+                "session_id": session.session_id,
+                "enabled": deepfake.enabled,
+                "enforced": deepfake.enforced,
+                "passed": deepfake.passed,
+                "deepfake_score": deepfake.deepfake_score,
+                "max_deepfake_score": deepfake.max_deepfake_score,
+                "frames_processed": deepfake.frames_processed,
+            },
+        )
 
         decision = determine_finalization_decision(
             mode=mode,
@@ -362,9 +505,26 @@ class VerificationSessionService:
             quality_frames_available=quality_frames_available,
             liveness_passed=liveness.passed,
             antispoof_passed=antispoof.passed,
+            deepfake_enabled=deepfake.enabled,
+            deepfake_passed=deepfake.passed,
+            deepfake_enforced=(
+                mode == VerificationMode.DEEPFAKE_ONLY
+                or (deepfake.enabled and deepfake.enforced and mode != VerificationMode.LIVENESS_ONLY)
+            ),
         )
         human = decision.human
         failure_reason = decision.failure_reason
+        attack_analysis = build_attack_analysis(
+            human=human,
+            failure_reason=failure_reason,
+            spoof_score=antispoof.spoof_score,
+            max_spoof_score=antispoof.max_spoof_score,
+            antispoof_passed=antispoof.passed,
+            deepfake_enabled=deepfake.enabled,
+            deepfake_score=deepfake.deepfake_score,
+            max_deepfake_score=deepfake.max_deepfake_score,
+            deepfake_passed=deepfake.passed,
+        )
 
         face_confidences = [item.confidence for item in face_detections if item.detected]
         face_confidence = sum(face_confidences) / len(face_confidences) if face_confidences else 0.0
@@ -379,6 +539,9 @@ class VerificationSessionService:
             quality_score=quality_score,
             liveness_confidence=liveness.confidence,
             spoof_score=antispoof.spoof_score,
+            max_spoof_score=antispoof.max_spoof_score,
+            deepfake_score=deepfake.deepfake_score if deepfake.enabled else None,
+            max_deepfake_score=deepfake.max_deepfake_score if deepfake.enabled else None,
         )
 
         proof_id: str | None = None
@@ -453,6 +616,12 @@ class VerificationSessionService:
             confidence=confidence,
             spoof_score=antispoof.spoof_score,
             max_spoof_score=antispoof.max_spoof_score,
+            deepfake_score=deepfake.deepfake_score,
+            max_deepfake_score=deepfake.max_deepfake_score,
+            deepfake_frames_processed=deepfake.frames_processed,
+            deepfake_message=deepfake.message,
+            deepfake_enabled=deepfake.enabled,
+            attack_analysis=attack_analysis,
             proof_id=proof_id,
             blob_id=blob_id,
             expires_at=expires_at,
@@ -470,6 +639,7 @@ class VerificationSessionService:
             face_quality=quality_evaluations[-1] if quality_evaluations else None,
             landmark_spotcheck=landmark_spotchecks[-1] if landmark_spotchecks else None,
             antispoof=antispoof,
+            deepfake=deepfake,
             antispoof_preview=False,
             current_step=session.challenge_type,
             step_progress=session.step_progress,
@@ -488,14 +658,21 @@ class VerificationSessionService:
                 "completed_challenges": [step.value for step in session.completed_challenges],
                 "confidence": confidence,
                 "spoof_score": antispoof.spoof_score,
+                "deepfake_score": deepfake.deepfake_score,
                 "failure_reason": failure_reason,
+                "attack_family": attack_analysis["suspected_attack_family"],
             },
         )
         return result
 
     async def get_health(self) -> HealthResponse:
         redis_ok = await self.store.ping()
-        models_ready = self.face_detector.models_ready and self.antispoof_evaluator.models_ready
+        deepfake_ready = (not self.deepfake_evaluator.enabled) or self.deepfake_evaluator.models_ready
+        models_ready = (
+            self.face_detector.models_ready
+            and self.antispoof_evaluator.models_ready
+            and deepfake_ready
+        )
         return HealthResponse(
             status="ready" if redis_ok else "degraded",
             redis="ready" if redis_ok else "degraded",
@@ -515,6 +692,27 @@ class VerificationSessionService:
                 if self.settings.verifier_encryption_adapter_enabled
                 else "not_configured"
             ),
+            model_details={
+                "face_detector": {
+                    "ready": self.face_detector.models_ready,
+                    "runtime": self.face_detector.runtime_label,
+                },
+                "antispoof": {
+                    "ready": self.antispoof_evaluator.models_ready,
+                    "runtime": self.antispoof_evaluator.runtime_label,
+                    "threshold": self.settings.verifier_antispoof_threshold,
+                    "hard_fail_threshold": self.settings.verifier_antispoof_hard_fail_threshold,
+                },
+                "deepfake": {
+                    "enabled": self.deepfake_evaluator.enabled,
+                    "ready": self.deepfake_evaluator.models_ready,
+                    "runtime": self.deepfake_evaluator.runtime_label,
+                    "threshold": self.settings.verifier_deepfake_threshold,
+                    "enforced": self.settings.verifier_deepfake_enforce_decision,
+                    "sample_frames": self.deepfake_sample_frames,
+                    "model_hash": self.deepfake_evaluator.model_hash,
+                },
+            },
             tuning={
                 "minimum_step_frames": self.minimum_step_frames,
                 "blink_closed_threshold": self.settings.verifier_liveness_blink_closed_threshold,
@@ -535,8 +733,168 @@ class VerificationSessionService:
                 "motion_min_displacement": self.settings.verifier_liveness_motion_min_displacement,
                 "motion_max_still_ratio": self.settings.verifier_liveness_motion_max_still_ratio,
                 "motion_min_transitions": self.settings.verifier_liveness_motion_min_transitions,
+                "deepfake_threshold": self.settings.verifier_deepfake_threshold,
+                "deepfake_sample_frames": self.deepfake_sample_frames,
+                "deepfake_enforced": self.settings.verifier_deepfake_enforce_decision,
             },
         )
+
+    def _admin_frame_payload(self, payload) -> dict[str, object]:
+        return {
+            "type": ClientEventType.FRAME.value,
+            "frame_index": payload.frame_index,
+            "timestamp": payload.timestamp.isoformat(),
+            "image_base64": payload.image_base64,
+            "landmarks": payload.landmarks or {},
+            "metadata": payload.metadata or {},
+        }
+
+    def _admin_frame_bundle(
+        self,
+        payloads,
+    ) -> list[
+        tuple[
+            FrameInput,
+            FaceDetectionResult,
+            FaceQualityEvaluation,
+            LandmarkSpotCheckEvaluation,
+        ]
+    ]:
+        return self.frame_evaluator.build_frame_bundle(
+            [self._admin_frame_payload(payload) for payload in payloads]
+        )
+
+    def _split_frame_bundle(
+        self,
+        frame_bundle: list[
+            tuple[
+                FrameInput,
+                FaceDetectionResult,
+                FaceQualityEvaluation,
+                LandmarkSpotCheckEvaluation,
+            ]
+        ],
+    ) -> tuple[
+        list[FrameInput],
+        list[FaceDetectionResult],
+        list[FaceQualityEvaluation],
+        list[LandmarkSpotCheckEvaluation],
+        list[FrameInput],
+        list[FaceDetectionResult],
+        list[int],
+    ]:
+        frames = [frame for frame, _, _, _ in frame_bundle]
+        face_detections = [face_detection for _, face_detection, _, _ in frame_bundle]
+        quality_evaluations = [quality for _, _, quality, _ in frame_bundle]
+        landmark_spotchecks = [spotcheck for _, _, _, spotcheck in frame_bundle]
+        usable_frames: list[FrameInput] = []
+        usable_face_detections: list[FaceDetectionResult] = []
+        accepted_indices: list[int] = []
+        for frame, face_detection, quality, spotcheck in frame_bundle:
+            if face_detection.detected and quality.passed and spotcheck.passed:
+                usable_frames.append(frame)
+                usable_face_detections.append(face_detection)
+                accepted_indices.append(frame.frame_index)
+        return (
+            frames,
+            face_detections,
+            quality_evaluations,
+            landmark_spotchecks,
+            usable_frames,
+            usable_face_detections,
+            accepted_indices,
+        )
+
+    def _face_detection_payload(
+        self,
+        face_detection: FaceDetectionResult | None,
+    ) -> dict[str, Any]:
+        bounding_box = None
+        if face_detection is not None and face_detection.bounding_box is not None:
+            bounding_box = {
+                "x": face_detection.bounding_box.x,
+                "y": face_detection.bounding_box.y,
+                "width": face_detection.bounding_box.width,
+                "height": face_detection.bounding_box.height,
+            }
+        return {
+            "detected": bool(face_detection.detected) if face_detection is not None else False,
+            "confidence": face_detection.confidence if face_detection is not None else 0.0,
+            "bounding_box": bounding_box,
+            "message": face_detection.message if face_detection is not None else "No face detected in frame",
+        }
+
+    def _quality_payload(
+        self,
+        face_quality: FaceQualityEvaluation | None,
+    ) -> dict[str, Any]:
+        return {
+            "passed": face_quality.passed if face_quality is not None else False,
+            "score": face_quality.score if face_quality is not None else 0.0,
+            "primary_issue": face_quality.primary_issue if face_quality is not None else None,
+            "message": face_quality.message if face_quality is not None else "Improve frame quality",
+            "feedback": face_quality.feedback if face_quality is not None else [],
+            "checks": face_quality.checks if face_quality is not None else {},
+            "metrics": face_quality.metrics if face_quality is not None else {},
+        }
+
+    def _spotcheck_payload(
+        self,
+        spotcheck: LandmarkSpotCheckEvaluation | None,
+    ) -> dict[str, Any]:
+        return {
+            "enforced": spotcheck.enforced if spotcheck is not None else False,
+            "passed": spotcheck.passed if spotcheck is not None else True,
+            "message": spotcheck.message if spotcheck is not None else "Landmark spot-check unavailable",
+            "mismatch_pixels": spotcheck.mismatch_pixels if spotcheck is not None else None,
+            "threshold_pixels": spotcheck.threshold_pixels if spotcheck is not None else None,
+            "anchors_used": spotcheck.anchors_used if spotcheck is not None else 0,
+            "landmark_center": spotcheck.landmark_center if spotcheck is not None else None,
+            "face_center": spotcheck.face_center if spotcheck is not None else None,
+        }
+
+    def _liveness_payload(self, liveness: LivenessEvaluation) -> dict[str, Any]:
+        return {
+            "passed": liveness.passed,
+            "progress": liveness.progress,
+            "frames_processed": liveness.frames_processed,
+            "matched_signals": liveness.matched_signals,
+            "required_signals": liveness.required_signals,
+            "confidence": liveness.confidence,
+            "message": liveness.message,
+            "challenge_type": liveness.challenge_type.value,
+        }
+
+    def _antispoof_payload(
+        self,
+        antispoof: AntiSpoofEvaluation,
+        *,
+        preview: bool,
+    ) -> dict[str, Any]:
+        return {
+            "passed": antispoof.passed,
+            "spoof_score": antispoof.spoof_score,
+            "max_spoof_score": antispoof.max_spoof_score,
+            "frames_processed": antispoof.frames_processed,
+            "flagged_frames": antispoof.flagged_frames,
+            "message": antispoof.message,
+            "model_hash": antispoof.model_hash,
+            "preview": preview,
+        }
+
+    def _deepfake_payload(self, deepfake: DeepfakeEvaluation) -> dict[str, Any]:
+        return {
+            "enabled": deepfake.enabled,
+            "enforced": deepfake.enforced,
+            "passed": deepfake.passed,
+            "deepfake_score": deepfake.deepfake_score,
+            "max_deepfake_score": deepfake.max_deepfake_score,
+            "frames_processed": deepfake.frames_processed,
+            "flagged_frames": deepfake.flagged_frames,
+            "message": deepfake.message,
+            "model_hash": deepfake.model_hash,
+            "preview": False,
+        }
 
     async def _get_session_record(self, session_id: str) -> SessionRecord:
         session = await self.store.get_session(session_id)
@@ -608,30 +966,37 @@ class VerificationSessionService:
 
     def _select_challenge_sequence(self, session_id: str) -> list[ChallengeType]:
         rng = random.Random(session_id)
-        active_pool = [
-            ChallengeType.BLINK_TWICE,
-            ChallengeType.TURN_LEFT,
-            ChallengeType.TURN_RIGHT,
-            ChallengeType.NOD_HEAD,
-            ChallengeType.SMILE,
-        ]
-        sequence_length = 2 if rng.random() < 0.5 else 3
+        sequence_length = 2 if rng.random() < 0.7 else 3
         for _ in range(128):
-            sequence = rng.sample(active_pool, k=sequence_length)
+            sequence = rng.sample(_FRIENDLY_CHALLENGE_POOL, k=sequence_length)
             if self._sequence_is_valid(sequence):
                 return sequence
 
-        fallback = [ChallengeType.BLINK_TWICE, ChallengeType.TURN_RIGHT]
+        fallback = [ChallengeType.TURN_RIGHT, ChallengeType.SMILE]
         if sequence_length == 3:
-            fallback = [ChallengeType.NOD_HEAD, ChallengeType.SMILE, ChallengeType.BLINK_TWICE]
+            fallback = [ChallengeType.TURN_LEFT, ChallengeType.SMILE, ChallengeType.OPEN_MOUTH]
         return fallback
+
+    def _resolve_challenge_sequence(
+        self,
+        payload: SessionCreateRequest,
+        session_id: str,
+    ) -> list[ChallengeType]:
+        if payload.challenge_sequence:
+            return list(payload.challenge_sequence)
+        return self._select_challenge_sequence(session_id)
 
     def _sequence_is_valid(self, sequence: list[ChallengeType]) -> bool:
         if len(set(sequence)) != len(sequence):
             return False
-        if len(sequence) == 2 and set(sequence) == {ChallengeType.BLINK_TWICE, ChallengeType.SMILE}:
+        head_motion_count = sum(step in _HEAD_MOTION_CHALLENGES for step in sequence)
+        expression_count = sum(step in _FRIENDLY_EXPRESSION_CHALLENGES for step in sequence)
+
+        if head_motion_count == 0 or expression_count == 0:
             return False
-        if len(sequence) == 3 and not any(step in _HEAD_MOTION_CHALLENGES for step in sequence):
+        if len(sequence) == 2 and head_motion_count != 1:
+            return False
+        if len(sequence) == 3 and head_motion_count > 2:
             return False
         return True
 

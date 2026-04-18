@@ -20,6 +20,7 @@ import type {
   AttackType,
   CalibrationLabel,
   CalibrationRecord,
+  ChallengeSequenceMode,
   HarnessLogSection,
   LandmarkEngineState,
   LandmarkMetrics,
@@ -28,6 +29,15 @@ import type {
   SourceSplit,
 } from "../_lib/types";
 import { challengeHint, challengeLabel, formatMetric, formatPercent } from "../_lib/utils";
+
+const configurableChallengeOptions: ChallengeType[] = [
+  "turn_left",
+  "turn_right",
+  "nod_head",
+  "smile",
+  "open_mouth",
+  "blink_twice",
+];
 
 export function AdminHeroPanel(props: {
   cameraState: "idle" | "ready" | "error";
@@ -146,6 +156,12 @@ export function SessionControlsPanel(props: {
   onWalletAddressChange: (value: string) => void;
   verificationMode: VerificationMode;
   onVerificationModeChange: (value: VerificationMode) => void;
+  sequenceMode: ChallengeSequenceMode;
+  onSequenceModeChange: (value: ChallengeSequenceMode) => void;
+  fixedSequenceLength: number;
+  onFixedSequenceLengthChange: (value: number) => void;
+  fixedChallengeSequence: ChallengeType[];
+  onFixedChallengeSequenceChange: (value: ChallengeType[]) => void;
   challengeType: ChallengeType | null;
   challengeSequence: ChallengeType[];
   completedChallenges: ChallengeType[];
@@ -191,9 +207,62 @@ export function SessionControlsPanel(props: {
           <option value="full">full</option>
           <option value="liveness_only">liveness_only</option>
           <option value="antispoof_only">antispoof_only</option>
+          <option value="deepfake_only">deepfake_only</option>
         </select>
         <small className="field-hint">{verificationModeHints[props.verificationMode]}</small>
       </label>
+
+      <label className="field">
+        <span>test sequence</span>
+        <select
+          value={props.sequenceMode}
+          onChange={(event) => props.onSequenceModeChange(event.target.value as ChallengeSequenceMode)}
+        >
+          <option value="fixed">fixed</option>
+          <option value="random">random</option>
+        </select>
+        <small className="field-hint">
+          {props.sequenceMode === "fixed"
+            ? "Admin sessions use the configured fixed challenge order for repeatable testing."
+            : "Admin sessions use the verifier's seeded random friendly sequence pool."}
+        </small>
+      </label>
+
+      {props.sequenceMode === "fixed" ? (
+        <>
+          <label className="field">
+            <span>fixed step count</span>
+            <select
+              value={props.fixedSequenceLength}
+              onChange={(event) => props.onFixedSequenceLengthChange(Number(event.target.value))}
+            >
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+            </select>
+          </label>
+
+          {Array.from({ length: props.fixedSequenceLength }, (_, index) => (
+            <label className="field" key={`fixed-step-${index}`}>
+              <span>{`step ${index + 1}`}</span>
+              <select
+                value={props.fixedChallengeSequence[index]}
+                onChange={(event) => {
+                  const next = [...props.fixedChallengeSequence];
+                  next[index] = event.target.value as ChallengeType;
+                  props.onFixedChallengeSequenceChange(next);
+                }}
+              >
+                {configurableChallengeOptions.map((challenge) => (
+                  <option key={challenge} value={challenge}>
+                    {challengeLabel(challenge)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </>
+      ) : null}
 
       <div className="sequence-card">
         <span>challenge sequence</span>
@@ -254,7 +323,7 @@ export function SessionControlsPanel(props: {
       </div>
 
       <div className="button-grid">
-        <button onClick={() => props.onQueueAction("blink")} type="button">Trigger blink</button>
+        <button onClick={() => props.onQueueAction("open_mouth")} type="button">Trigger mouth</button>
         <button onClick={() => props.onQueueAction("turn_left")} type="button">Trigger left</button>
         <button onClick={() => props.onQueueAction("turn_right")} type="button">Trigger right</button>
         <button onClick={() => props.onQueueAction("nod_head")} type="button">Trigger nod</button>
@@ -303,6 +372,7 @@ export function BackendHealthPanel({ health }: { health: HealthResponse | null }
           <div><span>chain</span><strong>{health.chain_adapter}</strong></div>
           <div><span>storage</span><strong>{health.storage_adapter}</strong></div>
           <div><span>encryption</span><strong>{health.encryption_adapter}</strong></div>
+          <div><span>deepfake</span><strong>{health.model_details?.deepfake?.enabled ? (health.model_details?.deepfake?.ready ? "ready" : "degraded") : "disabled"}</strong></div>
         </div>
       ) : (
         <p>Waiting for health response...</p>
@@ -314,6 +384,7 @@ export function BackendHealthPanel({ health }: { health: HealthResponse | null }
 export function ServerChecksPanel(props: {
   backendDebug: VerificationDebugPayload | null;
   result: VerificationResult | null;
+  reportedAttackType?: string;
 }) {
   const serverQualityFeedback =
     props.backendDebug?.quality?.feedback && props.backendDebug.quality.feedback.length > 0
@@ -328,6 +399,24 @@ export function ServerChecksPanel(props: {
     props.backendDebug?.antispoof?.spoof_score;
   const serverAntiSpoofMessage =
     props.backendDebug?.antispoof?.message ?? "No anti-spoof guidance yet.";
+  const deepfakeEnabled =
+    props.result?.deepfake_enabled ??
+    props.backendDebug?.deepfake?.enabled ??
+    false;
+  const deepfakeScore =
+    props.result?.deepfake_score ??
+    props.backendDebug?.deepfake?.score ??
+    null;
+  const deepfakeMax =
+    props.result?.max_deepfake_score ??
+    props.result?.deepfake_score ??
+    props.backendDebug?.deepfake?.max_score ??
+    props.backendDebug?.deepfake?.score ??
+    null;
+  const deepfakeMessage =
+    props.result?.deepfake_message ??
+    props.backendDebug?.deepfake?.message ??
+    "Deepfake scoring disabled.";
   const serverSpotcheckStatus = props.backendDebug?.landmark_spotcheck?.enforced
     ? props.backendDebug?.landmark_spotcheck?.passed
       ? "passed"
@@ -343,6 +432,7 @@ export function ServerChecksPanel(props: {
       : props.result?.status === "verified"
         ? "none"
         : "No terminal verdict yet.";
+  const attackAnalysis = props.result?.attack_analysis;
 
   return (
     <div className="panel">
@@ -362,10 +452,26 @@ export function ServerChecksPanel(props: {
         <div><span>spot mismatch</span><strong>{formatMetric(serverSpotcheckMismatch)}</strong></div>
         <div><span>anti-spoof</span><strong>{formatMetric(serverAntiSpoofScore)}</strong></div>
         <div><span>anti-spoof max</span><strong>{formatMetric(serverAntiSpoofMax)}</strong></div>
+        <div><span>deepfake</span><strong>{deepfakeEnabled ? formatMetric(deepfakeScore) : "disabled"}</strong></div>
+        <div><span>deepfake max</span><strong>{deepfakeEnabled ? formatMetric(deepfakeMax) : "disabled"}</strong></div>
+        <div><span>attack family</span><strong>{attackAnalysis?.suspected_attack_family ?? "pending"}</strong></div>
+        <div><span>failure category</span><strong>{attackAnalysis?.failure_category ?? "pending"}</strong></div>
         <div><span>terminal verdict</span><strong>{props.result?.status ?? "streaming"}</strong></div>
       </div>
       <div className="server-note"><span>quality feedback</span><strong>{serverQualityFeedback}</strong></div>
       <div className="server-note"><span>failure reason</span><strong>{serverFailureReason}</strong></div>
+      <div className="server-note">
+        <span>reported scenario</span>
+        <strong>{props.reportedAttackType ?? "not_set"}</strong>
+      </div>
+      <div className="server-note">
+        <span>attack metrics</span>
+        <strong>
+          {attackAnalysis
+            ? `presentation=${formatMetric(attackAnalysis.presentation_attack_score)} peak=${formatMetric(attackAnalysis.presentation_attack_peak ?? null)} | deepfake=${formatMetric(attackAnalysis.deepfake_score ?? null)} peak=${formatMetric(attackAnalysis.deepfake_peak ?? null)}`
+            : "Waiting for a terminal attack analysis."}
+        </strong>
+      </div>
       <div className="server-note">
         <span>spot-check note</span>
         <strong>
@@ -381,6 +487,14 @@ export function ServerChecksPanel(props: {
           {serverAntiSpoofMessage}
           {props.backendDebug?.antispoof?.preview ? " (live preview)" : ""}
         </strong>
+      </div>
+      <div className="server-note">
+        <span>deepfake note</span>
+        <strong>{deepfakeMessage}</strong>
+      </div>
+      <div className="server-note">
+        <span>attack note</span>
+        <strong>{attackAnalysis?.note ?? "No terminal attack analysis yet."}</strong>
       </div>
     </div>
   );

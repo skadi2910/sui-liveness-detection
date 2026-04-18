@@ -113,7 +113,7 @@ export function useCameraLandmarks(params: {
   }
 
   function manualMetadata(action: ManualAction | null): Record<string, unknown> {
-    if (action === "blink") return { blink: true };
+    if (action === "open_mouth") return { mouth_open: true, mouth_ratio: 0.38 };
     if (action === "turn_left") return { head_turn: "left" };
     if (action === "turn_right") return { head_turn: "right" };
     if (action === "smile") return { smile: true, smile_ratio: 0.48 };

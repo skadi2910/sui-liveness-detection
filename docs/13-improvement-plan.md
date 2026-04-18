@@ -14,10 +14,11 @@ The MVP stack is running end-to-end with real models and a hardened multi-step l
 - Silent-Face passive anti-spoof (ONNX ensemble, official upstream weights)
 - TensorFlow.js face landmarks (browser-side, landmark telemetry streamed to backend)
 - Active challenge-response liveness — **server-authored randomized 2- or 3-step sequences**
-  - Supported steps: `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile`
+  - Supported steps in the verifier: `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile`, `open_mouth`
+  - Current friendly default pool for new sessions: `turn_left`, `turn_right`, `nod_head`, `smile`, `open_mouth`
   - Ordered sequence enforcement with per-step frame windows and completion tracking
   - Configurable hold-window pacing for step completion
-  - `open_mouth` removed from active pool and replaced with `smile`
+  - `blink_twice` remains available as a legacy QA challenge, but is no longer assigned in the default random pool
 - Live webcam overlay with guide box, landmark wireframe, and backend face box
 - Sequence timeline UI showing completed, current, and upcoming steps
 - Browser-side `pitch` and `smile_ratio` metrics for nod/smile detection
@@ -31,7 +32,18 @@ The MVP stack is running end-to-end with real models and a hardened multi-step l
   - `full`
   - `liveness_only`
   - `antispoof_only`
-- Browser landmark runtime has been stabilized for the local in-app browser by moving away from the brittle MediaPipe Tasks runtime
+  - `deepfake_only`
+- Admin/testing console also supports fixed challenge sequences for repeatable manual QA instead of relying only on randomized friendly sequences
+- Public verifier API remains session-oriented, with new admin-only evaluation endpoints for frame/session diagnostics
+- Canonical verification stream route is now `/ws/sessions/{session_id}/stream` with the legacy `/ws/verify/{session_id}` alias kept for compatibility
+- Finalize-time deepfake scoring is now wired into verifier results, health diagnostics, and terminal confidence as an optional second decision head
+- Terminal verifier results now include structured `attack_analysis` so failed sessions can distinguish presentation-attack, deepfake, combined-attack, and non-attack failure families
+- Local development / Docker now points at a real ONNX deepfake model (`onnx-community/Deep-Fake-Detector-v2-Model-ONNX`, `model_int8.onnx`) with enforcement still disabled by default
+- Production-parity local Docker assets now exist:
+  - `docker-compose.prod.yml`
+  - `proxy/nginx.conf`
+  - `apps/web/Dockerfile.prod`
+- Browser landmark runtime has been stabilized for the local in-app browser by replacing the brittle MediaPipe Tasks runtime with TensorFlow.js face-landmarks-detection
 - Blink / nod defaults have been retuned so natural single actions register more reliably during manual QA
 - Session lifecycle, WebSocket flow, calibration harness, and multi-step flow all validated in browser
 
@@ -44,11 +56,11 @@ What follows is a prioritized plan to harden the verifier before adding new laye
 ### Gap 1 — No human face gate
 The current pipeline assumes the incoming face is human. It does not explicitly reject non-human faces (animal masks, cartoon faces, plush toys). YOLOv8-face is trained on human face data and will usually skip non-human faces, but this is implicit behavior, not an explicit gate.
 
-### Gap 2 — No dedicated deepfake detector
-Silent-Face and the challenge-response sequence catch many AI-video attacks incidentally, but there is no model that specifically asks "is this stream synthetically generated?" Virtual-camera injection in particular is not blocked.
+### Gap 2 — No enforced deepfake gate yet
+The verifier now loads a real finalize-time ONNX deepfake detector and records sampled deepfake scores in results. It is still telemetry-first by default. Until it is validated against the local attack matrix and switched into enforced decisioning, talking-head / face-swap coverage still primarily depends on the existing anti-spoof + challenge stack.
 
 ### ~~Gap 3 — Single challenge per session~~ ✅ RESOLVED
-The backend now authors randomized 2- or 3-step sequences server-side with ordered enforcement, per-step frame windows, and configurable hold-window pacing. Supported steps: `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile`. Remaining open items from this gap (motion continuity check, server-side landmark spot-check) are tracked under Priority 2 below.
+The backend now authors randomized 2- or 3-step sequences server-side with ordered enforcement, per-step frame windows, and configurable hold-window pacing. The verifier still supports `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile`, and `open_mouth`, but the default pool now favors friendlier actions for production-like manual testing. Remaining open items from this gap (motion continuity check, server-side landmark spot-check) are tracked under Priority 2 below.
 
 ### Gap 4 — Browser landmarks are trusted
 The browser computes EAR, MAR, and yaw and sends them as telemetry. A tampered client or browser automation tool could send fabricated landmark values. The backend does not independently verify them.
@@ -60,6 +72,7 @@ The verifier now runs a heuristic face quality gate before liveness and anti-spo
 Threshold tuning exists, but the test suite does not report per-attack-type pass/fail rates (print, replay, deepfake, no-face, non-human). Without this it is hard to know which attack class is the current weakest point.
 
 Note: the new admin QA modes make attack-matrix collection easier, but they do not replace the need for a structured benchmark/reporting layer.
+The new fixed-sequence admin mode and terminal `attack_analysis` block now make that benchmark output much easier to interpret during manual QA, but they still need to be folded into a formal reporting suite.
 
 ---
 
@@ -109,7 +122,8 @@ Frame → YOLOv8 face crop → [NEW] Human Face Gate → Anti-Spoof → Liveness
 - ✅ Per-step frame windows with ordered completion tracking
 - ✅ Configurable hold-window pacing for step completion
 - ✅ Automatic session superseding when same wallet starts a new session
-- ✅ `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile` all supported
+- ✅ `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile`, and `open_mouth` all supported
+- ✅ default random pool now favors friendlier actions and excludes `blink_twice`
 
 **Completed sub-items:**
 
@@ -198,6 +212,8 @@ Frame → YOLOv8 face crop → [NEW] Human Face Gate → Anti-Spoof → Liveness
   - `full` for realistic end-to-end attack outcomes
   - `liveness_only` to isolate challenge/gate regressions from spoof scoring
   - `antispoof_only` to isolate spoof classifier behavior without full sequence completion
+  - `deepfake_only` to isolate finalize-time deepfake behavior without challenge completion obscuring the result
+- Prefer fixed challenge sequences for benchmark runs so repeated attack samples are compared against the same action order
 
 **Why this before a deepfake model:** If the current stack already catches talking-head and face-swap replay attacks via the challenge-response sequence, a dedicated deepfake model adds cost without adding protection. The attack matrix will answer this definitively.
 
@@ -209,11 +225,11 @@ Frame → YOLOv8 face crop → [NEW] Human Face Gate → Anti-Spoof → Liveness
 
 ---
 
-### Priority 5 — Add Deepfake Detector (conditional on Priority 4 results)
+### Priority 5 — Deepfake Detector Prototype (implemented, telemetry-first)
 
-**Only proceed if:** The attack matrix from Priority 4 shows that talking-head or face-swap replay attacks pass the current stack at a rate above 5%.
+**Status:** The verifier now has a finalize-time deepfake scoring slot backed by a real ONNX model in local development / Docker, plus result/health telemetry. Enforcement remains intentionally disabled by default until attack-matrix evidence justifies turning it on.
 
-**Recommended model:** ViT-based deepfake detector (ONNX) available on HuggingFace (`onnx-community/Deep-Fake-Detector-v2-Model-ONNX`) — 92% accuracy, drop-in ONNX, no GPU required for inference.
+**Current target:** see `14-deepfake-detector-research.md`. The active local implementation target is an ONNX-ready image-level detector on accepted face crops (`onnx-community/Deep-Fake-Detector-v2-Model-ONNX`, quantized `model_int8.onnx`), with a heavier temporal video model reserved for a later hardening pass only if the attack matrix proves it is necessary.
 
 **Integration as a second decision head, not a replacement:**
 ```
@@ -225,24 +241,42 @@ Fused verdict: reject if EITHER score exceeds threshold
 
 **Do not replace Silent-Face.** Silent-Face catches print and replay attacks well. The deepfake detector catches AI-video attacks. They cover different threat classes.
 
-**Acceptance criteria:**
-- Talking-head and face-swap pass rate drops below 5%
-- Live human pass rate does not decrease (no regression on false rejection)
-- Latency budget: deepfake inference must complete in < 80ms on CPU
+**Implemented prototype shape:**
+- sample a small number of accepted face crops per session (`4` to `8`, configurable)
+- run deepfake inference only at finalize time
+- load Hugging Face preprocessing metadata (`preprocessor_config.json`) for normalization and label mapping
+- record:
+  - `deepfake_score`
+  - `max_deepfake_score`
+  - `deepfake_frames_processed`
+  - `deepfake_message`
+  - `deepfake_enabled`
+- expose terminal attack-family analysis alongside the raw deepfake scores so failed sessions clearly distinguish:
+  - `presentation_attack`
+  - `deepfake_attack`
+  - `combined_attack_signals`
+  - non-attack failures such as liveness/quality/no-face
+- expose model/runtime state in `GET /api/health`
+- include deepfake confidence contribution in the terminal verifier confidence when the head is active, while capping exported human-confidence using peak attack risk so failed attack sessions do not look like strong human passes
+
+**Remaining acceptance criteria before enforcement:**
+- Talking-head and face-swap pass rate drops below 5% when the head is enabled on local attack-matrix samples
+- Live human pass rate does not decrease materially (no false-reject regression)
+- Latency budget remains acceptable on CPU because the head samples only a small number of accepted face crops
 
 ---
 
 ### Priority 6 — Upgrade Face Detection to SCRFD-10GF
 
 **Why:** SCRFD-10GF from InsightFace outputs face detection AND 5-point landmarks (eyes, nose, mouth corners) in a single model call. This means:
-- One fewer model call per frame (currently YOLOv8 + MediaPipe landmark streaming are separate)
+- One fewer model call per frame on the server side (currently YOLOv8 detection and browser landmark streaming are separate concerns)
 - More accurate face crops for downstream models
 - Server-side landmark availability for the spot-check in Priority 2d
 
 **Migration path:**
 - SCRFD-10GF is available as ONNX from the InsightFace model zoo
 - Drop-in replacement for YOLOv8 in `services/verifier/app/pipeline/face.py`
-- Keep MediaPipe in the browser for the 468-point landmark mesh (5-point is not enough for EAR/MAR)
+- Keep the browser TensorFlow.js landmark layer in place for dense EAR / MAR / pitch-style signals (5-point landmarks are not enough for that role)
 - Use SCRFD 5-point output only for the server-side spot-check (Priority 2d)
 
 **Acceptance criteria:**
@@ -311,9 +345,9 @@ Verdict: verified / failed + failure reason + confidence score
 
 The multi-step challenge sequence is complete. The remaining sprint work in priority order:
 
-1. **Collect real webcam samples and complete threshold calibration** — still pending per `10-progress-log.md`. Run all supported challenge combinations (`turn_left`, `turn_right`, `nod_head`, `smile`) manually, save labeled NDJSON calibration rows, and run the analyzer script. This unblocks reliable threshold values for everything downstream.
+1. **Collect real webcam samples and complete threshold calibration** — still pending per `10-progress-log.md`. Prefer fixed admin sequences for this pass so repeated human and attack runs are comparable across sessions.
 2. **Validate the new face quality gate on real sessions** — use the live `Server Checks` panel plus saved NDJSON samples to confirm blur, size, angle, and lighting checks behave as intended on project-native devices.
-3. **Build the attack matrix test fixture set (Priority 4 framework)** — even with a partial set of attack samples now, establish the reporting structure so every release gate produces a per-attack-class pass rate table.
-4. **Finish Priority 2 remaining items** — motion continuity check (2c) and landmark spot-check (2d) once calibration data is available to tune thresholds.
+3. **Build the attack matrix test fixture set (Priority 4 framework)** — even with a partial set of attack samples now, establish the reporting structure so every release gate produces a per-attack-class pass rate table, using the structured `attack_analysis` output instead of only raw `failure_reason`.
+4. **Tune Priority 2 and Priority 5 thresholds using saved calibration rows** — motion continuity, landmark spot-check, and deepfake scoring are implemented; the remaining work is validating and tightening their thresholds against real captured sessions.
 
 Start the human face classifier (Priority 1) only after the above are stable, since it requires a training or fine-tuning run against an assembled dataset.

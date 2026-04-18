@@ -13,6 +13,7 @@ from app.api.routes import router as api_router
 from app.api.websocket import router as websocket_router
 from app.core.config import Settings
 from app.pipeline.antispoof import MockAntiSpoofEvaluator
+from app.pipeline.deepfake import MockDeepfakeEvaluator
 from app.pipeline.evidence import EvidenceAssembler
 from app.pipeline.face import MockFaceDetector
 from app.pipeline.liveness import MockLivenessEvaluator
@@ -103,6 +104,7 @@ def verifier_app(tmp_path) -> FastAPI:
             motion_min_transitions=settings.verifier_liveness_motion_min_transitions,
         ),
         antispoof_evaluator=MockAntiSpoofEvaluator(),
+        deepfake_evaluator=MockDeepfakeEvaluator(threshold=settings.verifier_deepfake_threshold),
         evidence_assembler=EvidenceAssembler(),
         proof_minter=MockProofMinter(minimum_confidence=0.6),
         evidence_store=InMemoryEvidenceStore(),

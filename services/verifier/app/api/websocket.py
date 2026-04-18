@@ -6,6 +6,7 @@ from app.sessions.service import VerificationSessionService
 router = APIRouter(tags=["websocket"])
 
 
+@router.websocket("/ws/sessions/{session_id}/stream")
 @router.websocket("/ws/verify/{session_id}")
 async def verify_session(websocket: WebSocket, session_id: str) -> None:
     service: VerificationSessionService = websocket.app.state.session_service

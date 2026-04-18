@@ -1,0 +1,7 @@
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+sample-data/calibration/local-dev.ndjson
+sample-data/attack-matrix/local-dev.ndjson

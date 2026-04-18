@@ -21,7 +21,7 @@ Bootstrap should assume `venv` + `pip` because `uv` is not currently installed l
 - create verification sessions
 - select and track challenge state
 - accept frame or event streams over WebSocket
-- run face-detection, challenge-evaluation, and anti-spoof orchestration
+- run face-detection, challenge-evaluation, anti-spoof orchestration, and optional finalize-time deepfake scoring
 - emit progress and final outcome payloads
 - assemble evidence metadata without persisting raw video frames
 - call adapters for chain minting, storage, and encryption
@@ -79,7 +79,7 @@ Response:
   "status": "created",
   "challenge_type": "blink_twice",
   "expires_at": "2026-04-17T14:00:00Z",
-  "ws_url": "/ws/verify/sess_123"
+  "ws_url": "/ws/sessions/sess_123/stream"
 }
 ```
 
@@ -89,13 +89,33 @@ Returns current session state and final result when available.
 
 ### `GET /api/health`
 
-Returns service, Redis, and model readiness.
+Returns service, Redis, model readiness, model/runtime detail, and tuning thresholds.
+
+### `POST /api/admin/evaluate/frame`
+
+Admin-only QA endpoint for evaluating a single frame payload and returning stage-by-stage diagnostics.
+
+### `POST /api/admin/evaluate/session`
+
+Admin-only QA endpoint for evaluating a short frame batch and returning aggregate gate output plus a verdict preview.
+
+### `POST /api/admin/calibration/append`
+
+Admin alias for saving calibration rows.
+
+### `POST /api/admin/attack-matrix/append`
+
+Admin alias for saving attack-matrix rows.
 
 ## WebSocket Interface
 
-### `GET /ws/verify/{session_id}`
+### `GET /ws/sessions/{session_id}/stream`
 
 Bidirectional channel for challenge progress and verification events.
+
+Compatibility alias:
+
+- `GET /ws/verify/{session_id}`
 
 Client-to-server message families:
 

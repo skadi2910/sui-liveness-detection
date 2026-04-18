@@ -57,6 +57,7 @@ class VerificationMode(str, Enum):
     FULL = "full"
     LIVENESS_ONLY = "liveness_only"
     ANTISPOOF_ONLY = "antispoof_only"
+    DEEPFAKE_ONLY = "deepfake_only"
 
 
 class ClientInfo(BaseModel):
@@ -67,6 +68,15 @@ class ClientInfo(BaseModel):
 class SessionCreateRequest(BaseModel):
     wallet_address: str = Field(min_length=3)
     client: ClientInfo
+    challenge_sequence: list[ChallengeType] | None = Field(default=None, min_length=1, max_length=3)
+
+    @model_validator(mode="after")
+    def validate_sequence(self) -> "SessionCreateRequest":
+        if self.challenge_sequence is None:
+            return self
+        if len(set(self.challenge_sequence)) != len(self.challenge_sequence):
+            raise ValueError("challenge_sequence must not repeat challenges")
+        return self
 
 
 class VerificationProgress(BaseModel):
@@ -97,6 +107,12 @@ class VerificationResult(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     spoof_score: float = Field(ge=0.0, le=1.0)
     max_spoof_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    deepfake_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    max_deepfake_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    deepfake_frames_processed: int = Field(default=0, ge=0)
+    deepfake_message: str | None = None
+    deepfake_enabled: bool = False
+    attack_analysis: dict[str, Any] | None = None
     proof_id: str | None = None
     blob_id: str | None = None
     expires_at: datetime | None = None
@@ -146,6 +162,7 @@ class HealthResponse(BaseModel):
     chain_adapter: str
     storage_adapter: str
     encryption_adapter: str
+    model_details: dict[str, Any] | None = None
     tuning: dict[str, Any] | None = None
 
 
@@ -157,6 +174,55 @@ class CalibrationAppendResponse(BaseModel):
     saved: bool
     sample_id: str | None = None
     output_path: str
+
+
+class AdminFramePayload(BaseModel):
+    frame_index: int = Field(default=0, ge=0)
+    timestamp: datetime = Field(default_factory=utc_now)
+    image_base64: str | None = None
+    landmarks: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class AdminEvaluateFrameRequest(BaseModel):
+    frame: AdminFramePayload
+    challenge_type: ChallengeType = ChallengeType.BLINK_TWICE
+    mode: VerificationMode = VerificationMode.FULL
+
+
+class AdminEvaluateFrameResponse(BaseModel):
+    challenge_type: ChallengeType
+    evaluation_mode: VerificationMode
+    accepted_for_liveness: bool
+    accepted_for_spoof: bool
+    face_detection: dict[str, Any]
+    quality: dict[str, Any]
+    landmark_spotcheck: dict[str, Any]
+    liveness: dict[str, Any]
+    antispoof: dict[str, Any]
+    deepfake: dict[str, Any]
+
+
+class AdminEvaluateSessionRequest(BaseModel):
+    frames: list[AdminFramePayload] = Field(min_length=1)
+    challenge_type: ChallengeType = ChallengeType.BLINK_TWICE
+    mode: VerificationMode = VerificationMode.FULL
+
+
+class AdminEvaluateSessionResponse(BaseModel):
+    challenge_type: ChallengeType
+    evaluation_mode: VerificationMode
+    frames_processed: int = Field(ge=0)
+    accepted_frame_indices: list[int] = Field(default_factory=list)
+    face_detected: bool
+    quality_frames_available: bool
+    face_detection: dict[str, Any]
+    quality: dict[str, Any]
+    landmark_spotcheck: dict[str, Any]
+    liveness: dict[str, Any]
+    antispoof: dict[str, Any]
+    deepfake: dict[str, Any]
+    verdict_preview: dict[str, Any]
 
 
 class SessionRecord(BaseModel):

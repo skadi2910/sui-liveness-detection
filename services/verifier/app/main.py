@@ -12,6 +12,7 @@ from app.api.websocket import router as websocket_router
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.pipeline.antispoof import build_antispoof_evaluator
+from app.pipeline.deepfake import build_deepfake_evaluator
 from app.pipeline.evidence import EvidenceAssembler
 from app.pipeline.face import build_face_detector
 from app.pipeline.liveness import MockLivenessEvaluator
@@ -36,6 +37,13 @@ def build_lifespan(settings: Settings):
             model_dir=settings.verifier_antispoof_model_dir,
             threshold=settings.verifier_antispoof_threshold,
             hard_fail_threshold=settings.verifier_antispoof_hard_fail_threshold,
+        )
+        deepfake_evaluator = build_deepfake_evaluator(
+            mode=settings.verifier_deepfake_model_mode,
+            enabled=settings.verifier_deepfake_enabled,
+            model_path=settings.verifier_deepfake_model_path,
+            threshold=settings.verifier_deepfake_threshold,
+            enforce_decision=settings.verifier_deepfake_enforce_decision,
         )
         app.state.settings = settings
         app.state.session_store = store
@@ -66,6 +74,7 @@ def build_lifespan(settings: Settings):
                 motion_min_transitions=settings.verifier_liveness_motion_min_transitions,
             ),
             antispoof_evaluator=antispoof_evaluator,
+            deepfake_evaluator=deepfake_evaluator,
             evidence_assembler=EvidenceAssembler(),
             proof_minter=MockProofMinter(),
             evidence_store=InMemoryEvidenceStore(),

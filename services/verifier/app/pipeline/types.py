@@ -123,6 +123,19 @@ class AntiSpoofEvaluation:
 
 
 @dataclass(slots=True)
+class DeepfakeEvaluation:
+    enabled: bool
+    enforced: bool
+    passed: bool
+    deepfake_score: float | None
+    max_deepfake_score: float | None
+    frames_processed: int
+    flagged_frames: list[int] = field(default_factory=list)
+    model_hash: str | None = None
+    message: str = ""
+
+
+@dataclass(slots=True)
 class EvidenceBlob:
     session_id: str
     wallet_address: str

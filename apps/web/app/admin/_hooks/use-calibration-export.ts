@@ -61,6 +61,11 @@ export function useCalibrationExport(params: {
             human: terminalResult.human,
             spoof_score: terminalResult.spoof_score,
             max_spoof_score: terminalResult.max_spoof_score,
+            deepfake_score: terminalResult.deepfake_score,
+            max_deepfake_score: terminalResult.max_deepfake_score,
+            deepfake_frames_processed: terminalResult.deepfake_frames_processed,
+            deepfake_enabled: terminalResult.deepfake_enabled,
+            attack_analysis: terminalResult.attack_analysis ?? null,
             confidence: terminalResult.confidence,
           }
         : null,
@@ -77,8 +82,8 @@ export function useCalibrationExport(params: {
     }
 
     const endpoints = [
-      { key: "calibration", url: `${httpBase}/api/calibration/append` },
-      { key: "attack_matrix", url: `${httpBase}/api/attack-matrix/append` },
+      { key: "calibration", url: `${httpBase}/api/admin/calibration/append` },
+      { key: "attack_matrix", url: `${httpBase}/api/admin/attack-matrix/append` },
     ] as const;
 
     const results = await Promise.allSettled(

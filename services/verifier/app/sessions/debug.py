@@ -5,7 +5,12 @@ from app.pipeline.landmark_metrics import (
     extract_landmark_metrics,
 )
 from app.pipeline.quality import FaceQualityEvaluation
-from app.pipeline.types import AntiSpoofEvaluation, FaceDetectionResult, FrameInput
+from app.pipeline.types import (
+    AntiSpoofEvaluation,
+    DeepfakeEvaluation,
+    FaceDetectionResult,
+    FrameInput,
+)
 from app.sessions.models import ChallengeType
 
 
@@ -16,6 +21,7 @@ def build_session_debug_payload(
     face_quality: FaceQualityEvaluation | None,
     landmark_spotcheck: LandmarkSpotCheckEvaluation | None,
     antispoof: AntiSpoofEvaluation | None,
+    deepfake: DeepfakeEvaluation | None = None,
     antispoof_preview: bool = True,
     current_step: ChallengeType,
     step_progress: float,
@@ -97,5 +103,16 @@ def build_session_debug_payload(
             "frames_processed": antispoof.frames_processed if antispoof is not None else 0,
             "message": antispoof.message if antispoof is not None else "Preview pending",
             "preview": antispoof_preview,
+        },
+        "deepfake": {
+            "enabled": deepfake.enabled if deepfake is not None else False,
+            "enforced": deepfake.enforced if deepfake is not None else False,
+            "score": deepfake.deepfake_score if deepfake is not None else None,
+            "max_score": deepfake.max_deepfake_score if deepfake is not None else None,
+            "frames_processed": deepfake.frames_processed if deepfake is not None else 0,
+            "message": (
+                deepfake.message if deepfake is not None else "Deepfake scoring disabled"
+            ),
+            "preview": False,
         },
     }

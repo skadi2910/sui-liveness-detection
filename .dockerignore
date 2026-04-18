@@ -1,0 +1,13 @@
+.git
+.gitignore
+.next
+node_modules
+**/node_modules
+**/.next
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.venv
+**/*.pyc
+services/verifier/sample-data/calibration/local-dev.ndjson
+services/verifier/sample-data/attack-matrix/local-dev.ndjson

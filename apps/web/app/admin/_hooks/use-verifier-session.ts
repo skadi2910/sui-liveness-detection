@@ -24,6 +24,7 @@ type AppendLog = (section: "pipeline" | "detection" | "signals", summary: string
 export function useVerifierSession(params: {
   walletAddress: string;
   verificationMode: VerificationMode;
+  challengeSequenceOverride?: ChallengeType[] | null;
   autoAssist: boolean;
   appendLog: AppendLog;
   appendDebugLogs: (debug: VerificationDebugPayload) => void;
@@ -173,6 +174,10 @@ export function useVerifierSession(params: {
             platform: "web",
             user_agent: navigator.userAgent,
           },
+          challenge_sequence:
+            params.challengeSequenceOverride && params.challengeSequenceOverride.length > 0
+              ? params.challengeSequenceOverride
+              : undefined,
         }),
       });
 
@@ -198,7 +203,7 @@ export function useVerifierSession(params: {
       setConnectionState("connecting");
       params.appendLog("pipeline", "Session created", created);
 
-      const websocket = new WebSocket(`${wsBase}/ws/verify/${created.session_id}`);
+      const websocket = new WebSocket(`${wsBase}${created.ws_url}`);
       socketRef.current = websocket;
 
       websocket.onopen = () => {

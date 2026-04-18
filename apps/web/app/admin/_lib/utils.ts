@@ -9,7 +9,7 @@ import type {
 } from "./types";
 
 export function challengeLabel(challengeType: ChallengeType): string {
-  if (challengeType === "blink_twice") return "Blink twice";
+  if (challengeType === "blink_twice") return "Blink twice (legacy)";
   if (challengeType === "turn_left") return "Turn left";
   if (challengeType === "turn_right") return "Turn right";
   if (challengeType === "nod_head") return "Nod head";
@@ -18,12 +18,12 @@ export function challengeLabel(challengeType: ChallengeType): string {
 }
 
 export function challengeHint(challengeType: ChallengeType | null): string {
-  if (challengeType === "blink_twice") return "Blink twice to clear the current step.";
-  if (challengeType === "turn_left") return "Turn your head left once.";
-  if (challengeType === "turn_right") return "Turn your head right once.";
-  if (challengeType === "nod_head") return "Nod down and back up.";
+  if (challengeType === "blink_twice") return "Blink twice to clear the current step. This is a legacy QA challenge.";
+  if (challengeType === "turn_left") return "Turn your head left once, then return to center.";
+  if (challengeType === "turn_right") return "Turn your head right once, then return to center.";
+  if (challengeType === "nod_head") return "Give one natural down-and-up nod.";
   if (challengeType === "smile") return "Hold a natural smile for a moment.";
-  if (challengeType === "open_mouth") return "Open your mouth once.";
+  if (challengeType === "open_mouth") return "Open your mouth once in a natural way.";
   return "Start a session to receive a challenge sequence.";
 }
 
@@ -153,6 +153,11 @@ export function buildCalibrationRecord(params: {
     human: boolean;
     spoof_score: number;
     max_spoof_score?: number | null;
+    deepfake_score?: number | null;
+    max_deepfake_score?: number | null;
+    deepfake_frames_processed?: number;
+    deepfake_enabled?: boolean;
+    attack_analysis?: CalibrationRecord["attack_analysis"];
     confidence: number;
   } | null;
   progress: number;
@@ -190,6 +195,11 @@ export function buildCalibrationRecord(params: {
     human: result.human,
     spoof_score: result.spoof_score,
     max_spoof_score: result.max_spoof_score ?? result.spoof_score,
+    deepfake_score: result.deepfake_score ?? null,
+    max_deepfake_score: result.max_deepfake_score ?? result.deepfake_score ?? null,
+    deepfake_frames_processed: result.deepfake_frames_processed ?? 0,
+    deepfake_enabled: result.deepfake_enabled ?? false,
+    attack_analysis: result.attack_analysis ?? null,
     confidence: result.confidence,
     challenge_progress: progress,
     landmark_metrics: {

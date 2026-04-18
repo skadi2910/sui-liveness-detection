@@ -62,6 +62,30 @@ class Settings(BaseSettings):
         default=0.75,
         alias="VERIFIER_ANTISPOOF_HARD_FAIL_THRESHOLD",
     )
+    verifier_deepfake_enabled: bool = Field(
+        default=True,
+        alias="VERIFIER_DEEPFAKE_ENABLED",
+    )
+    verifier_deepfake_model_mode: str = Field(
+        default="auto",
+        alias="VERIFIER_DEEPFAKE_MODEL_MODE",
+    )
+    verifier_deepfake_model_path: str | None = Field(
+        default="models/deepfake/model_int8.onnx",
+        alias="VERIFIER_DEEPFAKE_MODEL_PATH",
+    )
+    verifier_deepfake_threshold: float = Field(
+        default=0.65,
+        alias="VERIFIER_DEEPFAKE_THRESHOLD",
+    )
+    verifier_deepfake_sample_frames: int = Field(
+        default=6,
+        alias="VERIFIER_DEEPFAKE_SAMPLE_FRAMES",
+    )
+    verifier_deepfake_enforce_decision: bool = Field(
+        default=False,
+        alias="VERIFIER_DEEPFAKE_ENFORCE_DECISION",
+    )
     verifier_liveness_blink_closed_threshold: float = Field(
         default=0.23,
         alias="VERIFIER_LIVENESS_BLINK_CLOSED_THRESHOLD",
