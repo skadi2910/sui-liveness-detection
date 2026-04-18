@@ -1,0 +1,188 @@
+# Progress Log
+
+## Current Status
+
+The repository now has a documented MVP structure plus a runnable local verifier/testing harness with a sequence-based liveness flow, live overlay diagnostics, and QA-oriented calibration tooling.
+
+Validated on April 18, 2026:
+
+- `docker compose config`
+- `python3 -m compileall services/verifier/app`
+- `python3 -m compileall services/verifier/tests services/verifier/scripts/analyze_calibration_samples.py`
+- `npm install` in `apps/web`
+- `npm run build` in `apps/web`
+- live health check against `GET /api/health`
+- live REST + WebSocket smoke test ending in a `verified` terminal event
+- live landmark-aware REST + WebSocket smoke test ending in a `verified` terminal event
+- `PYTHONPATH=services/verifier services/verifier/.venv/bin/pytest services/verifier/tests/test_session_flows.py services/verifier/tests/test_logging.py`
+- `PYTHONPATH=services/verifier services/verifier/.venv/bin/pytest services/verifier/tests/test_session_flows.py services/verifier/tests/test_face_quality.py services/verifier/tests/test_calibration_analysis.py`
+- real YOLOv8 face model download and SHA-256 verification
+- official Silent-Face weights copied locally and exported to ONNX
+- real-model sample validation against upstream Silent-Face sample images
+- browser manual flow validation for mirrored preview, session start, multi-step progress, and successful finalize
+
+## What Is Implemented
+
+### Documentation
+
+- core product, architecture, backend, frontend, test, and hosting spec pack
+- this progress log as the current implementation checkpoint
+
+### Shared Contracts
+
+- TypeScript package under `packages/shared`
+- shared enums, REST payloads, WebSocket event types, and sample fixtures
+
+### Backend
+
+- FastAPI application scaffold
+- Redis-ready session store with in-memory fallback
+- REST endpoints for health and session lifecycle
+- WebSocket verification endpoint
+- landmark-aware liveness pipeline with configurable thresholds
+- heuristic face quality gate before liveness and anti-spoof frame acceptance
+- motion continuity check inside the liveness gate when sufficient landmark positions are available
+- server-side landmark spot-check that cross-checks landmark-implied face position against the detected face box
+- stateful blink counting across frames
+- metadata fallback path when landmarks are absent
+- server-authored randomized 2- or 3-step challenge sequences
+- supported sequence steps: `blink_twice`, `turn_left`, `turn_right`, `nod_head`, `smile`
+- ordered sequence enforcement with per-step frame windows and completion tracking
+- compact debug payloads attached to progress events
+- per-frame cached server debug annotations for face detection and quality decisions
+- health payload exposes face quality tuning thresholds
+- health payload also exposes motion continuity tuning thresholds
+- health payload also exposes the landmark spot-check mismatch threshold
+- configurable hold-window pacing for step completion
+- automatic superseding of older active sessions when the same wallet starts a new test session
+- real YOLOv8 face detection model loaded from disk
+- real Silent-Face ONNX anti-spoof ensemble loaded from disk
+- mock evidence encryptor, store, and proof minter
+- Dockerfile for local containerized backend runs
+- lightweight backend tests around session lifecycle and terminal events
+- calibration analyzer script for project-native threshold tuning
+
+### Frontend
+
+- Next.js App Router scaffold under `apps/web`
+- client-facing landing page at `/`
+- internal verifier / QA console at `/admin`
+- webcam-based local verifier harness moved into the admin surface
+- session creation against the backend
+- WebSocket-driven progress and result rendering
+- manual and auto-assisted challenge triggers for testing
+- QA mode selector with backend finalize modes:
+  - `full`
+  - `liveness_only`
+  - `antispoof_only`
+- browser-side MediaPipe Face Landmarker integration
+- landmark telemetry streaming to the verifier
+- on-screen landmark readiness and signal metrics for manual testing
+- mirrored webcam preview so left/right actions match user expectation
+- live webcam overlay with guide box, landmark wireframe, and backend face box
+- sequence timeline showing completed, current, and upcoming steps
+- browser-side `pitch` and `smile_ratio` metrics for nod/smile testing
+- split `Pipeline`, `Detection`, and `Signals` logs with collapsed raw JSON detail
+- dedicated `Server Checks` panel for live backend gate visibility during manual QA
+- tuning snapshot panel showing browser assist defaults and backend liveness thresholds
+- slower end-of-sequence pacing with delayed auto-finalize for better QA UX
+- calibration-row export from completed sessions for NDJSON-based threshold tuning
+- completed exports now include the verification evaluation mode used for the session
+- Dockerfile for local containerized frontend runs
+
+### Local Run Path
+
+- root `docker-compose.yml` for `redis`, `verifier`, and `web`
+- template calibration dataset under `services/verifier/sample-data/calibration/`
+
+## What Is Not Implemented Yet
+
+- Walrus integration
+- Seal integration
+- Sui contract adapter beyond mock minting
+- zkLogin
+- production auth, observability, and deployment hardening
+
+## Important Current Constraint
+
+The backend is runnable today with real face detection, real anti-spoofing, and landmark-aware liveness. The current admin harness is suitable for local flow validation, payload validation, attack-matrix collection, and real model integration testing, while `/` now serves as the client-facing product shell.
+
+The testing-harness phase described in `12-testing-phase-plan.md` is now effectively complete: multi-step sequences, overlay diagnostics, structured logs, shared-contract updates, and terminal verification flows are all implemented. Current work has moved from harness construction into verifier hardening.
+
+The current health response may still show `degraded` for Redis when Redis is not running locally, but the model layer should now report ready when the verifier starts with the checked-in `.env`.
+
+Wallet cooldown after terminal sessions has been removed to support heavy repeated testing, and repeated `Start session` actions now supersede any older active session for the same wallet instead of returning a blocking `409`.
+
+The one milestone that is still only partially complete is project-native threshold tuning: the repo now has the collection/analyzer workflow, but actual real webcam sample capture still requires a human to perform and label sessions. This is calibration work for the pretrained stack, not model retraining.
+
+## Real Model Notes
+
+- YOLOv8 face detection is using `yolov8n-face-lindevs.onnx`.
+- Silent-Face is using the official upstream `.pth` weights exported locally to ONNX.
+- The anti-spoof runtime had to be aligned with upstream preprocessing: Silent-Face expects float tensors in the `0..255` value range, not normalized `0..1`.
+- Browser-side landmarks are now produced by MediaPipe Face Landmarker and sent to the backend over the existing WebSocket flow.
+- Backend liveness now consumes landmark-derived EAR, MAR, and yaw-style signals, while preserving metadata overrides for synthetic or manual testing.
+- The testing harness now uses backend-authored multi-step sequences instead of a single randomized challenge.
+- `open_mouth` has been removed from the active testing sequence pool for this phase and replaced with `smile`.
+- Current liveness tuning values are exposed through `GET /api/health` to support browser-based QA and threshold calibration.
+- Current face quality tuning values are also exposed through `GET /api/health`, and the verifier now gates liveness/anti-spoof frame usage on those checks.
+- The current MVP strategy is pretrained-model-first; local sample capture exists to justify thresholds on project-native devices and conditions.
+- The browser harness can now export completed sessions as NDJSON calibration rows, reducing manual bookkeeping during QA.
+- The browser harness now has a live `Server Checks` panel so manual QA can see the backend face gate, quality gate, liveness step state, anti-spoof scores, and terminal failure reason without inspecting raw JSON.
+- The frontend is now split into a client-facing landing page and a separate admin/testing console.
+- The admin console now supports three finalize modes for QA:
+  - `full`: fused verifier path
+  - `liveness_only`: challenge / gate debugging without anti-spoof verdict blocking the result
+  - `antispoof_only`: spoof testing without full challenge completion blocking the result
+- Only `full` mode is eligible for proof minting; QA-only modes are test surfaces, not production proof flows.
+- The backend now blocks replay-like step windows that are too static across consecutive landmark anchor positions, reducing the chance that a still or near-still clip can satisfy a challenge step.
+- The backend now excludes frames whose browser landmark telemetry does not spatially line up with the detected face crop, reducing trust in tampered landmark streams.
+- On the upstream sample set, the current real pipeline now behaves as expected:
+  - `image_F1.jpg`: fake, failed
+  - `image_F2.jpg`: fake, failed
+  - `image_T1.jpg`: real, passed
+- On the live local stack, a landmark-aware smoke test against the restarted verifier completed with a terminal `verified` event.
+
+## Recommended Next Steps Status
+
+1. Install local dependencies and boot the verifier plus harness: completed.
+2. Validate the webcam flow end to end: completed for local boot/build, landmark-aware live API smoke, and manual browser verification of the multi-step harness.
+3. Replace mock liveness with real MediaPipe landmark analysis: completed.
+4. Add lightweight backend tests around session flows and terminal events: completed and expanded for sequence progression, health tuning visibility, hold-window pacing, and session restart behavior.
+5. Implement face-quality pre-filtering and surface server-side QA diagnostics in the harness: completed.
+6. Capture a few real webcam samples and tune thresholds using project-native data: partially completed.
+   - completed: sample collection format, calibration folder, analyzer script, and live server-side quality visibility
+   - pending: actual human-recorded local sample collection and threshold tuning pass
+
+## New Assets
+
+- frontend surfaces:
+  - `apps/web/app/page.tsx`
+  - `apps/web/app/admin/page.tsx`
+  - `apps/web/app/globals.css`
+  - `apps/web/package.json`
+- backend landmark-aware liveness:
+  - `services/verifier/app/pipeline/liveness.py`
+  - `services/verifier/app/pipeline/landmark_metrics.py`
+  - `services/verifier/app/pipeline/quality.py`
+  - `services/verifier/app/sessions/service.py`
+  - `services/verifier/app/core/config.py`
+- tests and calibration:
+  - `services/verifier/tests/conftest.py`
+  - `services/verifier/tests/test_session_flows.py`
+  - `services/verifier/tests/test_face_quality.py`
+  - `services/verifier/scripts/analyze_calibration_samples.py`
+  - `services/verifier/sample-data/calibration/README.md`
+
+## Recommended Next Steps
+
+`12-testing-phase-plan.md` is complete enough that the next steps now come from verifier hardening rather than testing-harness construction.
+
+1. Run a focused manual QA pass from `/admin` using all three finalize modes and the `Server Checks` panel:
+   - `full` for end-to-end fused verification
+   - `liveness_only` for challenge and gate tuning
+   - `antispoof_only` for spoof-sample evaluation
+2. Save labeled calibration rows from real browser webcam sessions in `services/verifier/sample-data/calibration/`.
+3. Use the analyzer script plus the live tuning snapshot to tune liveness, anti-spoof, face-quality, motion continuity, and spot-check thresholds from project-native data.
+4. Expand attack-matrix rows with real labeled spoof attempts so release checks measure pass/fail by attack class against project-native samples.
+5. Continue collecting labeled attack-matrix rows and use the current hardening stack to identify whether a dedicated human-face gate or deepfake head is actually justified next.

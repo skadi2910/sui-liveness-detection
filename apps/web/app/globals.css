@@ -1,0 +1,546 @@
+:root {
+  color-scheme: light;
+  font-family:
+    "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono",
+    "Courier New", monospace;
+  background:
+    radial-gradient(circle at top left, #f7f5ef 0, #f7f5ef 28%, #ece7d9 100%);
+  color: #171717;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: transparent;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
+
+.page-shell {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.panel {
+  border: 1px solid #171717;
+  background: rgba(255, 252, 245, 0.86);
+  box-shadow: 6px 6px 0 #171717;
+  padding: 1rem;
+}
+
+.hero-panel {
+  display: grid;
+  gap: 1rem;
+  align-items: end;
+}
+
+.eyebrow {
+  margin: 0 0 0.25rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+}
+
+.lede {
+  max-width: 72ch;
+}
+
+.meta-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.meta-grid div,
+.status-box div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.meta-grid span,
+.status-box span,
+.field span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+}
+
+.panel-header {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.panel-header h2,
+.hero-panel h1 {
+  margin: 0;
+}
+
+.panel-header p {
+  margin: 0;
+  opacity: 0.82;
+}
+
+.video {
+  width: 100%;
+  min-height: 320px;
+  object-fit: cover;
+  background: #111;
+  border: 1px solid #171717;
+}
+
+.video-shell {
+  position: relative;
+  transform: scaleX(-1);
+  transform-origin: center;
+}
+
+.overlay-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.hidden-canvas {
+  display: none;
+}
+
+.control-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.telemetry-card {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  border: 1px solid #171717;
+  background: #fffdf7;
+  padding: 0.75rem;
+}
+
+.telemetry-card span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+}
+
+.signal-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+}
+
+.signal-grid div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.sequence-card {
+  display: grid;
+  gap: 0.6rem;
+  border: 1px solid #171717;
+  background: #fffdf7;
+  padding: 0.75rem;
+}
+
+.sequence-card span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+}
+
+.sequence-list {
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+}
+
+.sequence-item {
+  border: 1px solid #171717;
+  padding: 0.55rem 0.65rem;
+  background: #f8f5eb;
+}
+
+.sequence-item.is-completed {
+  background: #d7e9e3;
+}
+
+.sequence-item.is-current {
+  background: #f8d286;
+}
+
+.sequence-item.is-upcoming {
+  opacity: 0.8;
+}
+
+.field input {
+  width: 100%;
+  border: 1px solid #171717;
+  background: #fffdf7;
+  padding: 0.75rem;
+}
+
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid #171717;
+  background: #fffdf7;
+  padding: 0.75rem;
+}
+
+.field textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+.toggle-row,
+.button-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.button-row button,
+.button-grid button {
+  border: 1px solid #171717;
+  background: #f4b942;
+  color: #171717;
+  padding: 0.75rem 0.9rem;
+}
+
+.button-row button:disabled,
+.button-grid button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.button-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.status-box {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid #171717;
+  padding: 0.75rem;
+  background: #fffdf7;
+}
+
+.server-note {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.75rem;
+  border: 1px solid #171717;
+  padding: 0.75rem;
+  background: #fffdf7;
+}
+
+.server-note span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+}
+
+.tuning-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tuning-card {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.tuning-card span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+}
+
+.json-block {
+  overflow: auto;
+  white-space: pre-wrap;
+  margin: 0;
+  border: 1px solid #171717;
+  padding: 0.75rem;
+  background: #fffdf7;
+}
+
+.field-hint {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  opacity: 0.78;
+}
+
+.log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.log-list li {
+  border-top: 1px solid #171717;
+  padding-top: 0.75rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.log-details {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.log-details summary {
+  cursor: pointer;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.78;
+}
+
+.log-json {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow: auto;
+  border: 1px solid #171717;
+  background: #fffdf7;
+  padding: 0.6rem;
+  font-size: 0.78rem;
+}
+
+.log-list li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.marketing-shell {
+  display: grid;
+  gap: 1.5rem;
+  padding: 1.25rem;
+}
+
+.marketing-hero,
+.marketing-section,
+.marketing-trust {
+  border: 1px solid #171717;
+  background: rgba(255, 252, 245, 0.9);
+  box-shadow: 6px 6px 0 #171717;
+  padding: 1.25rem;
+}
+
+.marketing-hero {
+  display: grid;
+  gap: 1rem;
+}
+
+.marketing-copy {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.marketing-copy h1,
+.marketing-panel h2,
+.marketing-section-header h2,
+.marketing-panel h3 {
+  margin: 0;
+}
+
+.marketing-lede {
+  max-width: 48rem;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.marketing-actions {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.marketing-button,
+.marketing-inline-link {
+  border: 1px solid #171717;
+  padding: 0.8rem 1rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marketing-button.is-primary {
+  background: #171717;
+  color: #fff8eb;
+}
+
+.marketing-button.is-secondary,
+.marketing-inline-link {
+  background: #fffdf7;
+}
+
+.marketing-card,
+.marketing-panel,
+.flow-step {
+  border: 1px solid #171717;
+  background: #fffdf7;
+  padding: 1rem;
+}
+
+.marketing-card {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.marketing-card-label,
+.marketing-caption {
+  margin: 0;
+}
+
+.marketing-card-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+
+.marketing-caption {
+  font-size: 0.84rem;
+  opacity: 0.78;
+}
+
+.marketing-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.marketing-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.marketing-section-header {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.marketing-grid,
+.flow-strip,
+.marketing-trust {
+  display: grid;
+  gap: 1rem;
+}
+
+.marketing-panel {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.marketing-panel p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.flow-step {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.flow-step span {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+
+.flow-step p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+@media (min-width: 900px) {
+  .marketing-hero {
+    grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+    align-items: stretch;
+  }
+
+  .marketing-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .flow-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .marketing-trust {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .page-shell {
+    padding: 0.75rem;
+  }
+
+  .panel {
+    box-shadow: 4px 4px 0 #171717;
+  }
+
+  .marketing-shell {
+    padding: 0.75rem;
+  }
+
+  .marketing-hero,
+  .marketing-section,
+  .marketing-trust {
+    box-shadow: 4px 4px 0 #171717;
+    padding: 1rem;
+  }
+}

@@ -1,0 +1,45 @@
+# Node / frontend
+node_modules/
+.next/
+out/
+dist/
+coverage/
+
+# Python / backend
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.pyc
+
+# Models and runtime artifacts
+services/verifier/models/weights/
+*.onnx
+*.onnx.data
+*.pt
+*.pth
+
+# Environment and local overrides
+.env
+.env.*
+!.env.example
+
+# Local datasets / calibration captures
+services/verifier/sample-data/calibration/local-dev.ndjson
+services/verifier/sample-data/attack-matrix/local-dev.ndjson
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Build and infra
+tmp/
+.turbo/

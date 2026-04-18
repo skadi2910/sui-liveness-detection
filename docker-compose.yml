@@ -1,0 +1,28 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  verifier:
+    build:
+      context: ./services/verifier
+    environment:
+      VERIFIER_REDIS_URL: redis://redis:6379/0
+      VERIFIER_ALLOWED_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
+    depends_on:
+      - redis
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      NEXT_PUBLIC_VERIFIER_HTTP_URL: http://localhost:8000
+      NEXT_PUBLIC_VERIFIER_WS_URL: ws://localhost:8000
+    depends_on:
+      - verifier
+    ports:
+      - "3000:3000"

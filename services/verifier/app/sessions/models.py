@@ -1,0 +1,271 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field, model_validator
+
+
+def utc_now() -> datetime:
+    return datetime.now(tz=UTC)
+
+
+class ChallengeType(str, Enum):
+    BLINK_TWICE = "blink_twice"
+    TURN_LEFT = "turn_left"
+    TURN_RIGHT = "turn_right"
+    NOD_HEAD = "nod_head"
+    SMILE = "smile"
+    OPEN_MOUTH = "open_mouth"
+
+
+class SessionStatus(str, Enum):
+    CREATED = "created"
+    READY = "ready"
+    STREAMING = "streaming"
+    PROCESSING = "processing"
+    VERIFIED = "verified"
+    FAILED = "failed"
+    EXPIRED = "expired"
+
+
+class ClientEventType(str, Enum):
+    FRAME = "frame"
+    LANDMARKS = "landmarks"
+    HEARTBEAT = "heartbeat"
+    FINALIZE = "finalize"
+
+
+class ServerEventType(str, Enum):
+    SESSION_READY = "session_ready"
+    CHALLENGE_UPDATE = "challenge_update"
+    PROGRESS = "progress"
+    PROCESSING = "processing"
+    VERIFIED = "verified"
+    FAILED = "failed"
+    ERROR = "error"
+
+
+class StepStatus(str, Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    COMPLETED = "completed"
+
+
+class VerificationMode(str, Enum):
+    FULL = "full"
+    LIVENESS_ONLY = "liveness_only"
+    ANTISPOOF_ONLY = "antispoof_only"
+
+
+class ClientInfo(BaseModel):
+    platform: str
+    user_agent: str | None = None
+
+
+class SessionCreateRequest(BaseModel):
+    wallet_address: str = Field(min_length=3)
+    client: ClientInfo
+
+
+class VerificationProgress(BaseModel):
+    session_id: str
+    status: SessionStatus
+    challenge_type: ChallengeType
+    challenge_sequence: list[ChallengeType]
+    current_challenge_index: int = Field(ge=0)
+    total_challenges: int = Field(ge=0)
+    completed_challenges: list[ChallengeType] = Field(default_factory=list)
+    step_status: StepStatus
+    progress: float = Field(ge=0.0, le=1.0)
+    frames_processed: int = Field(ge=0)
+    message: str
+    debug: dict[str, Any] | None = None
+
+
+class VerificationResult(BaseModel):
+    session_id: str
+    status: SessionStatus
+    evaluation_mode: VerificationMode = VerificationMode.FULL
+    human: bool
+    challenge_type: ChallengeType
+    challenge_sequence: list[ChallengeType] = Field(default_factory=list)
+    current_challenge_index: int = Field(ge=0)
+    total_challenges: int = Field(ge=0)
+    completed_challenges: list[ChallengeType] = Field(default_factory=list)
+    confidence: float = Field(ge=0.0, le=1.0)
+    spoof_score: float = Field(ge=0.0, le=1.0)
+    max_spoof_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    proof_id: str | None = None
+    blob_id: str | None = None
+    expires_at: datetime | None = None
+    failure_reason: str | None = None
+
+
+class EvidenceBlob(BaseModel):
+    session_id: str
+    wallet_address: str
+    challenge_type: ChallengeType
+    frame_hashes: list[str]
+    landmark_snapshot: dict[str, Any] | None = None
+    spoof_score_summary: dict[str, float] | None = None
+    model_hashes: dict[str, str] | None = None
+    captured_at: datetime
+
+
+class SessionCreateResponse(BaseModel):
+    session_id: str
+    status: SessionStatus
+    challenge_type: ChallengeType
+    challenge_sequence: list[ChallengeType]
+    current_challenge_index: int = Field(ge=0)
+    total_challenges: int = Field(ge=0)
+    completed_challenges: list[ChallengeType] = Field(default_factory=list)
+    expires_at: datetime
+    ws_url: str
+
+
+class SessionResponse(BaseModel):
+    session_id: str
+    status: SessionStatus
+    challenge_type: ChallengeType
+    challenge_sequence: list[ChallengeType]
+    current_challenge_index: int = Field(ge=0)
+    total_challenges: int = Field(ge=0)
+    completed_challenges: list[ChallengeType] = Field(default_factory=list)
+    created_at: datetime
+    expires_at: datetime
+    result: VerificationResult | None = None
+
+
+class HealthResponse(BaseModel):
+    status: str
+    redis: str
+    models: str
+    chain_adapter: str
+    storage_adapter: str
+    encryption_adapter: str
+    tuning: dict[str, Any] | None = None
+
+
+class CalibrationAppendRequest(BaseModel):
+    record: dict[str, Any]
+
+
+class CalibrationAppendResponse(BaseModel):
+    saved: bool
+    sample_id: str | None = None
+    output_path: str
+
+
+class SessionRecord(BaseModel):
+    session_id: str
+    wallet_address: str
+    status: SessionStatus
+    challenge_sequence: list[ChallengeType]
+    current_challenge_index: int = 0
+    completed_challenges: list[ChallengeType] = Field(default_factory=list)
+    total_challenges: int = 0
+    step_started_frame_index: int = 0
+    step_status: StepStatus = StepStatus.PENDING
+    step_progress: float = 0.0
+    debug: dict[str, Any] | None = None
+    client: ClientInfo
+    created_at: datetime
+    expires_at: datetime
+    updated_at: datetime
+    result: VerificationResult | None = None
+    frames_processed: int = 0
+    progress: float = 0.0
+    last_message: str = "Session created"
+    frame_payloads: list[dict[str, Any]] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _hydrate_sequence_state(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        hydrated = dict(value)
+        legacy_challenge = hydrated.get("challenge_type")
+        challenge_sequence = hydrated.get("challenge_sequence")
+        if not challenge_sequence and legacy_challenge is not None:
+            challenge_sequence = [legacy_challenge]
+            hydrated["challenge_sequence"] = challenge_sequence
+
+        if "completed_challenges" not in hydrated:
+            hydrated["completed_challenges"] = []
+        if "current_challenge_index" not in hydrated:
+            hydrated["current_challenge_index"] = 0
+        if "total_challenges" not in hydrated:
+            hydrated["total_challenges"] = len(challenge_sequence or [])
+        if "step_started_frame_index" not in hydrated:
+            hydrated["step_started_frame_index"] = 0
+        if "step_status" not in hydrated:
+            hydrated["step_status"] = StepStatus.PENDING
+        if "step_progress" not in hydrated:
+            hydrated["step_progress"] = 0.0
+        return hydrated
+
+    @property
+    def all_challenges_completed(self) -> bool:
+        return self.total_challenges > 0 and len(self.completed_challenges) >= self.total_challenges
+
+    @property
+    def challenge_type(self) -> ChallengeType:
+        if self.completed_challenges and self.all_challenges_completed:
+            return self.completed_challenges[-1]
+        if not self.challenge_sequence:
+            return ChallengeType.BLINK_TWICE
+        bounded_index = min(max(self.current_challenge_index, 0), len(self.challenge_sequence) - 1)
+        return self.challenge_sequence[bounded_index]
+
+    def to_response(self) -> SessionResponse:
+        return SessionResponse(
+            session_id=self.session_id,
+            status=self.status,
+            challenge_type=self.challenge_type,
+            challenge_sequence=self.challenge_sequence,
+            current_challenge_index=self.current_challenge_index,
+            total_challenges=self.total_challenges,
+            completed_challenges=self.completed_challenges,
+            created_at=self.created_at,
+            expires_at=self.expires_at,
+            result=self.result,
+        )
+
+    def to_progress(self) -> VerificationProgress:
+        return VerificationProgress(
+            session_id=self.session_id,
+            status=self.status,
+            challenge_type=self.challenge_type,
+            challenge_sequence=self.challenge_sequence,
+            current_challenge_index=self.current_challenge_index,
+            total_challenges=self.total_challenges,
+            completed_challenges=self.completed_challenges,
+            step_status=self.step_status,
+            progress=self.progress,
+            frames_processed=self.frames_processed,
+            message=self.last_message,
+            debug=self.debug,
+        )
+
+
+class WalletCooldown(BaseModel):
+    wallet_address: str
+    blocked_until: datetime
+
+
+class WebSocketClientEvent(BaseModel):
+    type: ClientEventType
+    timestamp: datetime = Field(default_factory=utc_now)
+    image_base64: str | None = None
+    landmarks: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
+    mode: VerificationMode | None = None
+
+
+class WebSocketServerEvent(BaseModel):
+    type: ServerEventType
+    payload: dict[str, Any] | VerificationProgress | VerificationResult | SessionResponse
