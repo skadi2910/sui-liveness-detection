@@ -6,7 +6,7 @@ import type {
   SessionRecordResponse,
 } from "@sui-human/shared";
 import { deriveResultOutcome } from "./client-flow";
-import { demoWalletAddress, httpBase } from "./constants";
+import { httpBase } from "./constants";
 
 export const lastSessionStorageKey = "sui-human-last-session";
 
@@ -31,21 +31,25 @@ export function clearStoredSessionId() {
   window.localStorage.removeItem(lastSessionStorageKey);
 }
 
-export async function createBrowserSession(params?: {
+export async function createBrowserSession(params: {
   challengeSequence?: ChallengeType[];
-  walletAddress?: string;
+  walletAddress: string;
 }) {
+  if (!params.walletAddress?.trim()) {
+    throw new Error("Connect a Sui wallet before starting verification.");
+  }
+
   const response = await fetch(`${httpBase}/api/sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      wallet_address: params?.walletAddress ?? demoWalletAddress,
+      wallet_address: params.walletAddress,
       client: {
         platform: "web",
         user_agent: navigator.userAgent,
       },
       challenge_sequence:
-        params?.challengeSequence && params.challengeSequence.length > 0
+        params.challengeSequence && params.challengeSequence.length > 0
           ? params.challengeSequence
           : undefined,
     }),
@@ -97,9 +101,9 @@ export function describeAppSession(session: SessionRecordResponse | null) {
   if (!session) {
     return {
       badge: "No session",
-      title: "Ready for a fresh verification",
+      title: "Ready to verify and mint",
       detail:
-        "Start a session from this dashboard to enter the live capture flow, then return here later for wallet handoff.",
+        "Connect your wallet, complete the live challenge flow, and return here to inspect the minted proof receipt and jump to SuiScan.",
     };
   }
 
@@ -120,14 +124,14 @@ export function describeAppSession(session: SessionRecordResponse | null) {
       badge: outcome === "verified" ? "Verified" : outcome === "spoof" ? "Flagged" : "Finished",
       title:
         outcome === "verified"
-          ? "Attestation is ready"
+          ? "Proof receipt is ready"
           : outcome === "spoof"
             ? "Review the verifier outcome"
             : "Session completed",
       detail:
         outcome === "verified"
-          ? "A completed result is on file and ready for the next proof or wallet step."
-          : "A terminal verifier result exists for this session. Review it before starting over.",
+          ? "The minting flow already finished. Stay on the app surface to inspect the proof receipt and jump to SuiScan."
+          : "A terminal verifier result exists for this session. Review it, then decide whether to start a fresh verification.",
     };
   }
 

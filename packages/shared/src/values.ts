@@ -31,6 +31,7 @@ export const verificationModes = [
 export type VerificationMode = (typeof verificationModes)[number];
 
 export const healthComponentStatuses = [
+  "mock",
   "ready",
   "degraded",
   "unavailable",

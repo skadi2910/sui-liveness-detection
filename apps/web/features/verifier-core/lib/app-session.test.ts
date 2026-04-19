@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { SessionRecordResponse } from "@sui-human/shared";
-import { deriveAppRouteTarget, describeAppSession } from "./app-session";
+import {
+  createBrowserSession,
+  deriveAppRouteTarget,
+  describeAppSession,
+} from "./app-session";
 
 function buildSession(
   overrides?: Partial<SessionRecordResponse>,
@@ -69,7 +73,7 @@ describe("deriveAppRouteTarget", () => {
 
 describe("describeAppSession", () => {
   it("describes missing sessions as ready for a fresh flow", () => {
-    expect(describeAppSession(null).badge).toBe("No session");
+    expect(describeAppSession(null).title).toContain("verify and mint");
   });
 
   it("describes active sessions as resumable", () => {
@@ -97,5 +101,13 @@ describe("describeAppSession", () => {
         }),
       ).badge,
     ).toBe("Verified");
+  });
+});
+
+describe("createBrowserSession", () => {
+  it("requires a connected wallet address before creating a product session", async () => {
+    await expect(
+      createBrowserSession({ walletAddress: "" }),
+    ).rejects.toThrow("Connect a Sui wallet before starting verification.");
   });
 });

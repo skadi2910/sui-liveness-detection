@@ -5,6 +5,15 @@ import {
   deriveResultOutcome,
   humanizeFailureReason,
 } from "@/features/verifier-core/lib/client-flow";
+import {
+  formatProofOperation,
+  formatProofValue,
+  getProofMetadataResult,
+} from "@/features/verifier-core/lib/proof-metadata";
+import {
+  buildSuiscanObjectUrl,
+  buildSuiscanTransactionUrl,
+} from "@/features/verifier-core/lib/sui-explorer";
 import { challengeLabel } from "@/features/verifier-core/lib/utils";
 
 function formatDate(value: string | undefined) {
@@ -18,30 +27,43 @@ export function ResultSummary(props: {
   sessionId: string;
 }) {
   const result = props.session?.result;
+  const proofResult = getProofMetadataResult(result);
   const outcome = deriveResultOutcome(props.session);
+  const proofObjectUrl = buildSuiscanObjectUrl(
+    proofResult?.proof_id,
+    proofResult?.chain_network,
+  );
+  const proofTransactionUrl = buildSuiscanTransactionUrl(
+    proofResult?.transaction_digest,
+    proofResult?.chain_network,
+  );
 
   const title =
-    outcome === "verified"
-      ? "Identity attested"
-      : outcome === "expired"
-        ? "Session expired"
-        : outcome === "spoof"
-          ? "Presentation attack detected"
-        : outcome === "failed"
-          ? "Verification failed"
-          : "Session unavailable";
+    outcome === "verified" && !result?.proof_id
+      ? "Verification approved"
+      : outcome === "verified"
+        ? "Identity attested"
+        : outcome === "expired"
+          ? "Session expired"
+          : outcome === "spoof"
+            ? "Presentation attack detected"
+            : outcome === "failed"
+              ? "Verification failed"
+              : "Session unavailable";
 
   const body =
-    outcome === "verified"
-      ? "The verifier accepted the session and returned a successful attestation."
-      : outcome === "expired"
-        ? "This session is no longer active. Start a new verification to continue."
-        : outcome === "spoof"
-          ? result?.attack_analysis?.note ??
-            "The verifier rejected this session because it resembles a replay, synthetic, or manipulated presentation."
-        : outcome === "failed"
-          ? humanizeFailureReason(result?.failure_reason)
-          : "We could not load a result for this session.";
+    outcome === "verified" && !result?.proof_id
+      ? "The verifier accepted the session. Return to the verification page to approve the wallet transaction and mint the proof."
+      : outcome === "verified"
+        ? "The verifier accepted the session, completed the mint flow, and recorded the proof metadata. Use the receipt links below to verify the proof on SuiScan."
+        : outcome === "expired"
+          ? "This session is no longer active. Start a new verification to continue."
+          : outcome === "spoof"
+            ? result?.attack_analysis?.note ??
+              "The verifier rejected this session because it resembles a replay, synthetic, or manipulated presentation."
+            : outcome === "failed"
+              ? humanizeFailureReason(result?.failure_reason)
+              : "We could not load a result for this session.";
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -97,6 +119,59 @@ export function ResultSummary(props: {
             </div>
           ) : null}
 
+          {result?.status === "verified" ? (
+            <div className="mt-6 border border-accent/40 bg-accent/10 p-5">
+              <p className="text-[0.65rem] uppercase tracking-[0.28em] text-accent">
+                Receipt handoff
+              </p>
+              <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                Use the SuiScan links below to verify the proof object and transaction. The owner
+                dashboard is temporarily disabled while the wallet-signed mint flow is being redesigned.
+              </p>
+            </div>
+          ) : null}
+
+          {result?.status === "verified" ? (
+            <dl className="mt-6 grid gap-4 text-sm text-muted-foreground sm:grid-cols-2">
+              <div className="border border-line/70 p-4">
+                <dt className="text-[0.62rem] uppercase tracking-[0.24em]">Proof operation</dt>
+                <dd className="mt-2 text-foreground">
+                  {formatProofOperation(proofResult?.proof_operation)}
+                </dd>
+              </div>
+              <div className="border border-line/70 p-4">
+                <dt className="text-[0.62rem] uppercase tracking-[0.24em]">Chain network</dt>
+                <dd className="mt-2 text-foreground">
+                  {formatProofValue(proofResult?.chain_network)}
+                </dd>
+              </div>
+              <div className="border border-line/70 p-4">
+                <dt className="text-[0.62rem] uppercase tracking-[0.24em]">Transaction digest</dt>
+                <dd className="mt-2 break-all text-foreground">
+                  {formatProofValue(proofResult?.transaction_digest)}
+                </dd>
+              </div>
+              <div className="border border-line/70 p-4">
+                <dt className="text-[0.62rem] uppercase tracking-[0.24em]">Walrus blob</dt>
+                <dd className="mt-2 break-all text-foreground">
+                  {formatProofValue(proofResult?.walrus_blob_id ?? proofResult?.blob_id)}
+                </dd>
+              </div>
+              <div className="border border-line/70 p-4">
+                <dt className="text-[0.62rem] uppercase tracking-[0.24em]">Walrus object</dt>
+                <dd className="mt-2 break-all text-foreground">
+                  {formatProofValue(proofResult?.walrus_blob_object_id)}
+                </dd>
+              </div>
+              <div className="border border-line/70 p-4">
+                <dt className="text-[0.62rem] uppercase tracking-[0.24em]">Seal identity</dt>
+                <dd className="mt-2 break-all text-foreground">
+                  {formatProofValue(proofResult?.seal_identity)}
+                </dd>
+              </div>
+            </dl>
+          ) : null}
+
           <dl className="mt-6 grid gap-4 text-sm text-muted-foreground sm:grid-cols-2">
             <div className="border border-line/70 p-4">
               <dt className="text-[0.62rem] uppercase tracking-[0.24em]">Expires</dt>
@@ -107,9 +182,7 @@ export function ResultSummary(props: {
             {result?.status === "verified" ? (
               <div className="border border-line/70 p-4">
                 <dt className="text-[0.62rem] uppercase tracking-[0.24em]">Session reference</dt>
-                <dd className="mt-2 text-foreground">
-                  {props.sessionId}
-                </dd>
+                <dd className="mt-2 text-foreground">{props.sessionId}</dd>
               </div>
             ) : null}
             {result?.status && result.status !== "verified" ? (
@@ -123,13 +196,33 @@ export function ResultSummary(props: {
           </dl>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <LaunchVerificationButton label="Start new session" />
             <Link
-              className="inline-flex items-center justify-center border border-line px-5 py-3 text-[0.7rem] uppercase tracking-[0.28em] transition hover:border-accent hover:text-accent"
+              className="inline-flex items-center justify-center border border-accent bg-accent px-5 py-3 text-[0.7rem] uppercase tracking-[0.28em] text-accent-foreground transition hover:brightness-110"
               href="/app"
             >
-              Back to app
+              Open app
             </Link>
+            {proofObjectUrl ? (
+              <Link
+                className="inline-flex items-center justify-center border border-line px-5 py-3 text-[0.7rem] uppercase tracking-[0.28em] transition hover:border-accent hover:text-accent"
+                href={proofObjectUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                View proof on SuiScan
+              </Link>
+            ) : null}
+            {proofTransactionUrl ? (
+              <Link
+                className="inline-flex items-center justify-center border border-line px-5 py-3 text-[0.7rem] uppercase tracking-[0.28em] transition hover:border-accent hover:text-accent"
+                href={proofTransactionUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                View transaction
+              </Link>
+            ) : null}
+            <LaunchVerificationButton label="Start new session" variant="secondary" />
           </div>
         </div>
       </div>

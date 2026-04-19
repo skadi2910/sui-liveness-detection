@@ -432,11 +432,17 @@ class MockLivenessEvaluator(LivenessEvaluator):
 
         uses_ratio = max(abs(item.value) for item in observations) <= 1.0
         threshold = self.nod_pitch_ratio_threshold if uses_ratio else self.nod_pitch_threshold
+        return_tolerance = threshold * 0.2
         has_up = max_observation.value >= threshold
         has_down = min_observation.value <= -threshold
+        has_down_and_return = has_up and min_observation.value <= return_tolerance
+        has_up_and_return = has_down and max_observation.value >= -return_tolerance
         range_progress = (max_observation.value - min_observation.value) / (threshold * 2) if threshold > 0 else 0.0
-        progress = round(max(0.0, min(range_progress, 1.0)), 4)
-        passed = has_up and has_down and min_observation.frame_index != max_observation.frame_index
+        peak_progress = max(abs(max_observation.value), abs(min_observation.value)) / threshold if threshold > 0 else 0.0
+        progress = round(max(0.0, min(max(range_progress, peak_progress * 0.75), 1.0)), 4)
+        passed = (
+            (has_up and has_down) or has_down_and_return or has_up_and_return
+        ) and min_observation.frame_index != max_observation.frame_index
 
         if passed:
             strongest = max(
@@ -453,7 +459,7 @@ class MockLivenessEvaluator(LivenessEvaluator):
             return 1, 1.0, True, self._success_message(ChallengeType.NOD_HEAD, 1), [signal]
 
         if has_down or has_up:
-            message = "Reverse head direction to finish the nod"
+            message = "Bring your head back toward center to finish the nod"
         else:
             message = "Nod your head up and down"
         return 0, progress, False, message, []

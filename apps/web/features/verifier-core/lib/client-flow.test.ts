@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  deriveCanStartVerification,
+  deriveCanFinalizeVerification,
+  deriveCanMintProof,
   deriveClientVerificationState,
   deriveResultOutcome,
   humanizeFailureReason,
@@ -13,11 +16,15 @@ describe("deriveClientVerificationState", () => {
       deriveClientVerificationState({
         sessionStatus: "streaming",
         resultStatus: undefined,
+        proofId: undefined,
         finalizeRequested: false,
+        mintRequested: false,
+        finalizeReady: false,
         connectionState: "open",
         hasSession: true,
         cameraState: "ready",
         landmarkState: "ready",
+        captureActive: true,
         busy: false,
         faceDetected: true,
         progress: 0.25,
@@ -31,11 +38,15 @@ describe("deriveClientVerificationState", () => {
       deriveClientVerificationState({
         sessionStatus: "streaming",
         resultStatus: undefined,
+        proofId: undefined,
         finalizeRequested: false,
+        mintRequested: false,
+        finalizeReady: false,
         connectionState: "closed",
         hasSession: true,
         cameraState: "ready",
         landmarkState: "ready",
+        captureActive: true,
         busy: false,
         faceDetected: true,
         progress: 0.8,
@@ -49,17 +60,171 @@ describe("deriveClientVerificationState", () => {
       deriveClientVerificationState({
         sessionStatus: "expired",
         resultStatus: undefined,
+        proofId: undefined,
         finalizeRequested: false,
+        mintRequested: false,
+        finalizeReady: false,
         connectionState: "closed",
         hasSession: true,
         cameraState: "ready",
         landmarkState: "ready",
+        captureActive: true,
         busy: false,
         faceDetected: true,
         progress: 1,
         stepStatus: "completed",
       }),
     ).toBe("expired");
+  });
+
+  it("shows a camera-idle state before the user opens the webcam", () => {
+    expect(
+      deriveClientVerificationState({
+        sessionStatus: "streaming",
+        resultStatus: undefined,
+        proofId: undefined,
+        finalizeRequested: false,
+        mintRequested: false,
+        finalizeReady: false,
+        connectionState: "open",
+        hasSession: true,
+        cameraState: "idle",
+        landmarkState: "ready",
+        captureActive: false,
+        busy: false,
+        faceDetected: false,
+        progress: 0,
+        stepStatus: "pending",
+      }),
+    ).toBe("camera_idle");
+  });
+
+  it("shows camera-ready once framing is good but verification has not started", () => {
+    expect(
+      deriveClientVerificationState({
+        sessionStatus: "streaming",
+        resultStatus: undefined,
+        proofId: undefined,
+        finalizeRequested: false,
+        mintRequested: false,
+        finalizeReady: false,
+        connectionState: "open",
+        hasSession: true,
+        cameraState: "ready",
+        landmarkState: "ready",
+        captureActive: false,
+        busy: false,
+        faceDetected: true,
+        progress: 0,
+        stepStatus: "pending",
+      }),
+    ).toBe("camera_ready");
+  });
+});
+
+describe("deriveCanStartVerification", () => {
+  it("allows verify after the webcam is open, tracking is ready, and the face is framed", () => {
+    expect(
+      deriveCanStartVerification({
+        hasSession: true,
+        connectionState: "open",
+        cameraState: "ready",
+        landmarkState: "ready",
+        faceDetected: true,
+        captureActive: false,
+        finalizeReady: false,
+        finalizeRequested: false,
+        hasResult: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks verify before the webcam and face tracking are ready", () => {
+    expect(
+      deriveCanStartVerification({
+        hasSession: true,
+        connectionState: "open",
+        cameraState: "idle",
+        landmarkState: "ready",
+        faceDetected: false,
+        captureActive: false,
+        finalizeReady: false,
+        finalizeRequested: false,
+        hasResult: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks verify once the backend has already marked the session ready to finalize", () => {
+    expect(
+      deriveCanStartVerification({
+        hasSession: true,
+        connectionState: "open",
+        cameraState: "ready",
+        landmarkState: "ready",
+        faceDetected: true,
+        captureActive: false,
+        finalizeReady: true,
+        finalizeRequested: false,
+        hasResult: false,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("deriveCanFinalizeVerification", () => {
+  it("allows finalize only when the backend marks the session mint-ready and capture has stopped", () => {
+    expect(
+      deriveCanFinalizeVerification({
+        modelsReady: true,
+        hasSession: true,
+        connectionState: "open",
+        finalizeReady: true,
+        captureActive: false,
+        finalizeRequested: false,
+        hasResult: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("still blocks finalize while verification capture is still running", () => {
+    expect(
+      deriveCanFinalizeVerification({
+        modelsReady: true,
+        hasSession: true,
+        connectionState: "open",
+        finalizeReady: true,
+        captureActive: true,
+        finalizeRequested: false,
+        hasResult: false,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("deriveCanMintProof", () => {
+  it("allows mint only after a verified verdict without a proof id", () => {
+    expect(
+      deriveCanMintProof({
+        hasResult: true,
+        resultStatus: "verified",
+        proofId: undefined,
+        mintRequested: false,
+        walletConnected: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks mint after the proof has already been minted", () => {
+    expect(
+      deriveCanMintProof({
+        hasResult: true,
+        resultStatus: "verified",
+        proofId: "0xproof",
+        mintRequested: false,
+        walletConnected: true,
+      }),
+    ).toBe(false);
   });
 });
 

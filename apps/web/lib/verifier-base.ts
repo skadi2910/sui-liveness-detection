@@ -25,5 +25,12 @@ export function resolveVerifierHttpBase(params: {
     return null;
   }
 
+  if (host.startsWith("localhost:") || host === "localhost") {
+    return "http://127.0.0.1:8000";
+  }
+  if (host.startsWith("127.0.0.1:") || host === "127.0.0.1") {
+    return "http://127.0.0.1:8000";
+  }
+
   return `${protocol}://${host}`;
 }

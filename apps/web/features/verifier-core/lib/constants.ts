@@ -20,7 +20,7 @@ function resolveHttpBase() {
     return process.env.NEXT_PUBLIC_VERIFIER_HTTP_URL;
   }
   if (shouldUseLocalVerifierFallback()) {
-    return `${window.location.protocol}//${window.location.hostname}:8000`;
+    return `http://127.0.0.1:8000`;
   }
   return "";
 }
@@ -31,23 +31,15 @@ function resolveWsBase() {
   }
   if (typeof window !== "undefined") {
     if (shouldUseLocalVerifierFallback()) {
-      return `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.hostname}:8000`;
+      return `ws://127.0.0.1:8000`;
     }
     return `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`;
   }
   return "ws://localhost:8000";
 }
 
-function resolveDemoWalletAddress() {
-  if (process.env.NEXT_PUBLIC_DEMO_WALLET_ADDRESS) {
-    return process.env.NEXT_PUBLIC_DEMO_WALLET_ADDRESS;
-  }
-  return "0xtesthuman";
-}
-
 export const httpBase = resolveHttpBase();
 export const wsBase = resolveWsBase();
-export const demoWalletAddress = resolveDemoWalletAddress();
 // Browser-side landmarks stay enabled for the admin harness. The hook uses the
 // TensorFlow.js detector runtime so it stays independent from the brittle
 // MediaPipe Tasks lifecycle that was failing in the local in-app browser.
@@ -55,7 +47,7 @@ export const browserLandmarksEnabled = true;
 
 export const captureIntervalMs = readNumberEnv(
   process.env.NEXT_PUBLIC_CAPTURE_INTERVAL_MS,
-  250,
+  180,
 );
 export const landmarkIntervalMs = readNumberEnv(
   process.env.NEXT_PUBLIC_LANDMARK_INTERVAL_MS,
@@ -65,7 +57,7 @@ export const eyeClosedThreshold = 0.21;
 export const eyeOpenThreshold = 0.26;
 export const yawTurnThreshold = readNumberEnv(
   process.env.NEXT_PUBLIC_YAW_TURN_THRESHOLD,
-  15,
+  12,
 );
 export const smileRatioThreshold = readNumberEnv(
   process.env.NEXT_PUBLIC_SMILE_RATIO_THRESHOLD,

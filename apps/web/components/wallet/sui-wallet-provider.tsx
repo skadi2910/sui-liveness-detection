@@ -22,7 +22,8 @@ function createSuiDAppKit() {
       new SuiGrpcClient({
         network: selectedNetwork,
         baseUrl: resolveSuiRpcUrl({
-          envValue: process.env.NEXT_PUBLIC_SUI_RPC_URL,
+          envValue:
+            process.env.NEXT_PUBLIC_SUI_FULLNODE_URL ?? process.env.NEXT_PUBLIC_SUI_RPC_URL,
           network: resolveSuiNetwork(selectedNetwork),
         }),
       }),

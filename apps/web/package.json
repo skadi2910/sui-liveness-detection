@@ -6,11 +6,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "seal:encrypt": "node scripts/seal-encrypt.mjs",
     "start": "next start",
     "test": "vitest run"
   },
   "dependencies": {
     "@mysten/dapp-kit-react": "^2.0.1",
+    "@mysten/seal": "^1.1.1",
     "@mysten/sui": "^2.16.0",
     "@sui-human/shared": "file:../../packages/shared",
     "@tensorflow-models/face-detection": "^1.0.3",

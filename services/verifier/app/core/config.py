@@ -95,7 +95,7 @@ class Settings(BaseSettings):
         alias="VERIFIER_DEEPFAKE_MODEL_PATH",
     )
     verifier_deepfake_threshold: float = Field(
-        default=0.65,
+        default=0.80,
         alias="VERIFIER_DEEPFAKE_THRESHOLD",
     )
     verifier_deepfake_sample_frames: int = Field(
@@ -123,11 +123,11 @@ class Settings(BaseSettings):
         alias="VERIFIER_LIVENESS_BLINK_MIN_CLOSED_FRAMES",
     )
     verifier_liveness_turn_yaw_threshold_degrees: float = Field(
-        default=18.0,
+        default=12.0,
         alias="VERIFIER_LIVENESS_TURN_YAW_THRESHOLD_DEGREES",
     )
     verifier_liveness_turn_offset_threshold: float = Field(
-        default=0.085,
+        default=0.065,
         alias="VERIFIER_LIVENESS_TURN_OFFSET_THRESHOLD",
     )
     verifier_liveness_mouth_open_threshold: float = Field(
@@ -135,11 +135,11 @@ class Settings(BaseSettings):
         alias="VERIFIER_LIVENESS_MOUTH_OPEN_THRESHOLD",
     )
     verifier_liveness_nod_pitch_threshold: float = Field(
-        default=8.0,
+        default=6.0,
         alias="VERIFIER_LIVENESS_NOD_PITCH_THRESHOLD",
     )
     verifier_liveness_nod_pitch_ratio_threshold: float = Field(
-        default=0.06,
+        default=0.045,
         alias="VERIFIER_LIVENESS_NOD_PITCH_RATIO_THRESHOLD",
     )
     verifier_liveness_smile_ratio_threshold: float = Field(
@@ -147,7 +147,7 @@ class Settings(BaseSettings):
         alias="VERIFIER_LIVENESS_SMILE_RATIO_THRESHOLD",
     )
     verifier_liveness_motion_min_displacement: float = Field(
-        default=0.002,
+        default=0.0015,
         alias="VERIFIER_LIVENESS_MOTION_MIN_DISPLACEMENT",
     )
     verifier_liveness_motion_max_still_ratio: float = Field(
@@ -155,7 +155,7 @@ class Settings(BaseSettings):
         alias="VERIFIER_LIVENESS_MOTION_MAX_STILL_RATIO",
     )
     verifier_liveness_motion_min_transitions: int = Field(
-        default=4,
+        default=2,
         alias="VERIFIER_LIVENESS_MOTION_MIN_TRANSITIONS",
     )
     verifier_liveness_minimum_step_frames: int = Field(
@@ -188,17 +188,138 @@ class Settings(BaseSettings):
         alias="VERIFIER_ALLOWED_ORIGINS",
     )
     verifier_redis_url: str | None = Field(default=None, alias="VERIFIER_REDIS_URL")
+    verifier_chain_adapter_mode: str | None = Field(
+        default=None,
+        alias="VERIFIER_CHAIN_ADAPTER_MODE",
+    )
     verifier_chain_adapter_enabled: bool = Field(
         default=False,
         alias="VERIFIER_CHAIN_ADAPTER_ENABLED",
+    )
+    verifier_storage_adapter_mode: str | None = Field(
+        default=None,
+        alias="VERIFIER_STORAGE_ADAPTER_MODE",
     )
     verifier_storage_adapter_enabled: bool = Field(
         default=False,
         alias="VERIFIER_STORAGE_ADAPTER_ENABLED",
     )
+    verifier_encryption_adapter_mode: str | None = Field(
+        default=None,
+        alias="VERIFIER_ENCRYPTION_ADAPTER_MODE",
+    )
     verifier_encryption_adapter_enabled: bool = Field(
         default=False,
         alias="VERIFIER_ENCRYPTION_ADAPTER_ENABLED",
+    )
+    verifier_sui_client_config_path: str | None = Field(
+        default=None,
+        alias="VERIFIER_SUI_CLIENT_CONFIG_PATH",
+    )
+    verifier_sui_env_alias: str | None = Field(
+        default=None,
+        alias="VERIFIER_SUI_ENV_ALIAS",
+    )
+    verifier_sui_expected_active_address: str | None = Field(
+        default=None,
+        alias="VERIFIER_SUI_EXPECTED_ACTIVE_ADDRESS",
+    )
+    verifier_sui_package_id: str | None = Field(
+        default=None,
+        alias="VERIFIER_SUI_PACKAGE_ID",
+    )
+    verifier_sui_registry_object_id: str | None = Field(
+        default=None,
+        alias="VERIFIER_SUI_REGISTRY_OBJECT_ID",
+    )
+    verifier_sui_verifier_cap_object_id: str | None = Field(
+        default=None,
+        alias="VERIFIER_SUI_VERIFIER_CAP_OBJECT_ID",
+    )
+    verifier_sui_module_name: str = Field(
+        default="proof_of_human",
+        alias="VERIFIER_SUI_MODULE_NAME",
+    )
+    verifier_sui_network: str = Field(
+        default="sui-testnet",
+        alias="VERIFIER_SUI_NETWORK",
+    )
+    verifier_sui_gas_budget: int | None = Field(
+        default=None,
+        alias="VERIFIER_SUI_GAS_BUDGET",
+    )
+    verifier_sui_proof_ttl_days: int = Field(
+        default=90,
+        alias="VERIFIER_SUI_PROOF_TTL_DAYS",
+    )
+    verifier_sui_claim_ttl_seconds: int = Field(
+        default=300,
+        alias="VERIFIER_SUI_CLAIM_TTL_SECONDS",
+    )
+    verifier_walrus_binary: str = Field(default="walrus", alias="VERIFIER_WALRUS_BINARY")
+    verifier_walrus_config_path: str | None = Field(
+        default=None,
+        alias="VERIFIER_WALRUS_CONFIG_PATH",
+    )
+    verifier_walrus_context: str | None = Field(
+        default=None,
+        alias="VERIFIER_WALRUS_CONTEXT",
+    )
+    verifier_walrus_wallet_path: str | None = Field(
+        default=None,
+        alias="VERIFIER_WALRUS_WALLET_PATH",
+    )
+    verifier_walrus_gas_budget: int | None = Field(
+        default=None,
+        alias="VERIFIER_WALRUS_GAS_BUDGET",
+    )
+    verifier_walrus_storage_epochs: int = Field(
+        default=5,
+        alias="VERIFIER_WALRUS_STORAGE_EPOCHS",
+    )
+    verifier_walrus_force_store: bool = Field(
+        default=True,
+        alias="VERIFIER_WALRUS_FORCE_STORE",
+    )
+    verifier_walrus_deletable: bool = Field(
+        default=True,
+        alias="VERIFIER_WALRUS_DELETABLE",
+    )
+    verifier_seal_encrypt_command: str | None = Field(
+        default=None,
+        alias="VERIFIER_SEAL_ENCRYPT_COMMAND",
+    )
+    verifier_seal_decrypt_command: str | None = Field(
+        default=None,
+        alias="VERIFIER_SEAL_DECRYPT_COMMAND",
+    )
+    verifier_seal_command_cwd: str | None = Field(
+        default=None,
+        alias="VERIFIER_SEAL_COMMAND_CWD",
+    )
+    verifier_seal_policy_version: str = Field(
+        default="seal-v1",
+        alias="VERIFIER_SEAL_POLICY_VERSION",
+    )
+    verifier_seal_server_configs: str | None = Field(
+        default=None,
+        alias="VERIFIER_SEAL_SERVER_CONFIGS",
+    )
+    verifier_seal_threshold: int | None = Field(
+        default=None,
+        alias="VERIFIER_SEAL_THRESHOLD",
+    )
+    verifier_seal_sui_network: str | None = Field(
+        default=None,
+        alias="VERIFIER_SEAL_SUI_NETWORK",
+    )
+    verifier_seal_sui_base_url: str | None = Field(
+        default=None,
+        alias="VERIFIER_SEAL_SUI_BASE_URL",
+    )
+    verifier_seal_verify_key_servers: bool | None = Field(
+        default=None,
+        alias="VERIFIER_SEAL_VERIFY_KEY_SERVERS",
     )
 
     model_config = SettingsConfigDict(
@@ -222,6 +343,24 @@ class Settings(BaseSettings):
                     return [str(item).strip() for item in parsed if str(item).strip()]
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+    @property
+    def effective_chain_adapter_mode(self) -> str:
+        if self.verifier_chain_adapter_mode:
+            return self.verifier_chain_adapter_mode
+        return "sui_cli" if self.verifier_chain_adapter_enabled else "mock"
+
+    @property
+    def effective_storage_adapter_mode(self) -> str:
+        if self.verifier_storage_adapter_mode:
+            return self.verifier_storage_adapter_mode
+        return "walrus_cli" if self.verifier_storage_adapter_enabled else "memory"
+
+    @property
+    def effective_encryption_adapter_mode(self) -> str:
+        if self.verifier_encryption_adapter_mode:
+            return self.verifier_encryption_adapter_mode
+        return "seal_command" if self.verifier_encryption_adapter_enabled else "mock"
 
 
 @lru_cache

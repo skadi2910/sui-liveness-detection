@@ -151,6 +151,7 @@ export interface VerificationProgress {
   completed_challenges: ChallengeType[];
   step_status: StepStatus;
   progress: number;
+  finalize_ready?: boolean;
   frames_processed: number;
   message: string;
   debug?: VerificationDebugPayload;
@@ -180,6 +181,8 @@ export interface VerificationResult {
   attack_analysis?: AttackAnalysis | null;
   proof_id?: string;
   transaction_digest?: string;
+  proof_operation?: "minted" | "renewed";
+  chain_network?: string;
   walrus_blob_id?: string;
   walrus_blob_object_id?: string;
   seal_identity?: string;
@@ -189,6 +192,41 @@ export interface VerificationResult {
   blob_id?: string;
   expires_at?: string;
   failure_reason?: string;
+}
+
+export type ProofClaimOperation = "mint" | "renew";
+
+export interface PreparedProofClaim {
+  session_id: string;
+  wallet_address: string;
+  operation: ProofClaimOperation;
+  package_id: string;
+  registry_object_id: string;
+  module_name: string;
+  clock_object_id: string;
+  claim_id: string;
+  claim_expires_at_ms: number;
+  proof_object_id?: string;
+  walrus_blob_id: string;
+  walrus_blob_object_id: string;
+  seal_identity: string;
+  evidence_schema_version: number;
+  model_hash?: string;
+  confidence_bps: number;
+  issued_at_ms: number;
+  expires_at_ms: number;
+  challenge_type: string;
+  signature_b64: string;
+  chain_network?: string;
+}
+
+export interface CompleteProofClaimRequest {
+  transaction_digest: string;
+  proof_id?: string;
+}
+
+export interface CancelProofClaimRequest {
+  reason?: string;
 }
 
 export interface SessionRecordResponse {

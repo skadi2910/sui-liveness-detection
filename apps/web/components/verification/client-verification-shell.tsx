@@ -11,11 +11,15 @@ import { challengeLabel } from "@/features/verifier-core/lib/utils";
 
 const stateTitles = {
   warming: "Preparing capture",
+  camera_idle: "Open your webcam",
+  camera_ready: "Ready to verify",
   camera_blocked: "Camera access needed",
   framing: "Center your face",
   challenge_active: "Follow the live instruction",
   ready_to_finalize: "Ready to finalize",
-  processing: "Processing attestation",
+  ready_to_mint: "Verified. Ready to mint",
+  processing: "Awaiting final verdict",
+  minting: "Minting proof",
   disconnected: "Connection interrupted",
   verified: "Verification complete",
   failed: "Verification failed",
@@ -30,7 +34,15 @@ export default function ClientVerificationShell(props: { sessionId: string }) {
     uiState,
     helperText,
     currentInstruction,
+    canOpenCamera,
+    canCloseCamera,
+    canStartVerification,
     canFinalize,
+    canMint,
+    openCamera,
+    closeCamera,
+    startVerification,
+    mintProof,
     reconnectSession,
   } =
     useClientVerificationFlow(props.sessionId);
@@ -48,6 +60,7 @@ export default function ClientVerificationShell(props: { sessionId: string }) {
 
   useEffect(() => {
     if (!verifier.result) return;
+    if (verifier.result.status === "verified" && !verifier.result.proof_id) return;
     router.replace(`/result/${props.sessionId}`);
   }, [props.sessionId, router, verifier.result]);
 
@@ -140,15 +153,154 @@ export default function ClientVerificationShell(props: { sessionId: string }) {
                   <dt className="text-[0.62rem] uppercase tracking-[0.24em]">Face tracking</dt>
                   <dd className="mt-1 text-foreground">{media.landmarkMessage}</dd>
                 </div>
+                <div>
+                  <dt className="text-[0.62rem] uppercase tracking-[0.24em]">Verification</dt>
+                  <dd className="mt-1 text-foreground">
+                    {verifier.captureActive
+                      ? "Live checks are running."
+                      : verifier.result?.status === "verified" && !verifier.result.proof_id
+                        ? "Server approved the session. Proof mint is now available."
+                      : verifier.finalizeReady
+                        ? "Live checks complete. Ready for final server review."
+                      : "Waiting for you to begin verification."}
+                  </dd>
+                </div>
               </dl>
-              <button
-                className="mt-6 inline-flex w-full items-center justify-center border border-accent bg-accent px-4 py-3 text-[0.7rem] uppercase tracking-[0.28em] text-accent-foreground transition disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!canFinalize}
-                onClick={verifier.sendFinalize}
-                type="button"
-              >
-                {verifier.finalizeRequested ? "Finalizing..." : "Finalize verification"}
-              </button>
+              <div className="mt-6 space-y-3">
+                <div className="border border-line/70 bg-panel p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[0.62rem] uppercase tracking-[0.24em] text-accent">
+                        Step 1
+                      </p>
+                      <p className="mt-2 text-sm font-semibold uppercase tracking-[0.2em] text-foreground">
+                        Start verifying
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        Open the webcam only when you are ready. You can close it at any time before minting.
+                      </p>
+                    </div>
+                    <span className="text-[0.62rem] uppercase tracking-[0.24em] text-muted-foreground">
+                      {media.cameraState === "ready" ? "Ready" : "Pending"}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      className="inline-flex min-w-[10rem] items-center justify-center border border-accent bg-accent px-4 py-3 text-[0.7rem] uppercase tracking-[0.28em] text-accent-foreground transition disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={!canOpenCamera}
+                      onClick={openCamera}
+                      type="button"
+                    >
+                      Open webcam
+                    </button>
+                    <button
+                      className="inline-flex min-w-[10rem] items-center justify-center border border-line bg-panel px-4 py-3 text-[0.7rem] uppercase tracking-[0.28em] text-foreground transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={!canCloseCamera}
+                      onClick={closeCamera}
+                      type="button"
+                    >
+                      Close webcam
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border border-line/70 bg-panel p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[0.62rem] uppercase tracking-[0.24em] text-accent">
+                        Step 2
+                      </p>
+                      <p className="mt-2 text-sm font-semibold uppercase tracking-[0.2em] text-foreground">
+                        Verify
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        Start the live challenge to test motion, spoof, and deepfake signals. This stage only gathers live evidence.
+                      </p>
+                    </div>
+                    <span className="text-[0.62rem] uppercase tracking-[0.24em] text-muted-foreground">
+                      {verifier.captureActive
+                        ? "Running"
+                        : verifier.finalizeReady || verifier.stepStatus === "completed"
+                          ? "Complete"
+                          : "Pending"}
+                    </span>
+                  </div>
+                  <button
+                    className="mt-4 inline-flex w-full items-center justify-center border border-line bg-panel px-4 py-3 text-[0.7rem] uppercase tracking-[0.28em] text-foreground transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!canStartVerification}
+                    onClick={startVerification}
+                    type="button"
+                  >
+                    {verifier.captureActive ? "Verification running" : "Verify"}
+                  </button>
+                </div>
+
+                <div className="border border-line/70 bg-panel p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[0.62rem] uppercase tracking-[0.24em] text-accent">
+                        Step 3
+                      </p>
+                      <p className="mt-2 text-sm font-semibold uppercase tracking-[0.2em] text-foreground">
+                        Finalize verification
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        Submit the session for the server's final verdict. A successful verdict unlocks the mint step.
+                      </p>
+                    </div>
+                    <span className="text-[0.62rem] uppercase tracking-[0.24em] text-muted-foreground">
+                      {verifier.result?.status === "verified" && !verifier.result.proof_id
+                        ? "Approved"
+                        : canFinalize
+                          ? "Ready"
+                          : verifier.finalizeRequested
+                            ? "Submitting"
+                            : "Locked"}
+                    </span>
+                  </div>
+                  <button
+                    className="mt-4 inline-flex w-full items-center justify-center border border-accent bg-accent px-4 py-3 text-[0.7rem] uppercase tracking-[0.28em] text-accent-foreground transition disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!canFinalize}
+                    onClick={verifier.sendFinalize}
+                    type="button"
+                  >
+                    {verifier.finalizeRequested ? "Submitting..." : "Finalize verification"}
+                  </button>
+                </div>
+
+                <div className="border border-line/70 bg-panel p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[0.62rem] uppercase tracking-[0.24em] text-accent">
+                        Step 4
+                      </p>
+                      <p className="mt-2 text-sm font-semibold uppercase tracking-[0.2em] text-foreground">
+                        Mint proof
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        Mint the proof only after the server returns a successful final verdict. This step opens your wallet so you can sign the proof transaction directly.
+                      </p>
+                    </div>
+                    <span className="text-[0.62rem] uppercase tracking-[0.24em] text-muted-foreground">
+                      {verifier.result?.status === "verified" && verifier.result?.proof_id
+                        ? "Complete"
+                        : verifier.mintRequested
+                          ? "Awaiting wallet"
+                          : canMint
+                            ? "Ready"
+                            : "Locked"}
+                    </span>
+                  </div>
+                  <button
+                    className="mt-4 inline-flex w-full items-center justify-center border border-accent bg-accent px-4 py-3 text-[0.7rem] uppercase tracking-[0.28em] text-accent-foreground transition disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!canMint}
+                    onClick={mintProof}
+                    type="button"
+                  >
+                    {verifier.mintRequested ? "Awaiting wallet..." : "Mint proof"}
+                  </button>
+                </div>
+              </div>
               {uiState === "disconnected" ? (
                 <button
                   className="mt-3 inline-flex w-full items-center justify-center border border-line bg-panel px-4 py-3 text-[0.7rem] uppercase tracking-[0.28em] text-foreground transition hover:border-accent hover:text-accent"

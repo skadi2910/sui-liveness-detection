@@ -89,7 +89,7 @@ export function useAppSession() {
 
   useEffect(() => {
     if (loadState !== "ready") return;
-    if (routeTarget.kind !== "verify" && routeTarget.kind !== "result") return;
+    if (routeTarget.kind !== "verify") return;
 
     startTransition(() => {
       router.replace(routeTarget.href);

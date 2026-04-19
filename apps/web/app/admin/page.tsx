@@ -10,6 +10,7 @@ import {
   CameraPanel,
   JsonPanel,
   LogPanels,
+  ProofMetadataPanel,
   ServerChecksPanel,
   SessionControlsPanel,
   TuningSnapshotPanel,
@@ -209,6 +210,11 @@ export default function AdminPage() {
           calibrationRecord={calibration.calibrationRecord}
         />
       </section>
+
+      <ProofMetadataPanel
+        result={verifier.result}
+        sessionId={verifier.session?.session_id ?? null}
+      />
 
       <JsonPanel
         title="Latest Result"

@@ -5,6 +5,8 @@ from types import SimpleNamespace
 from fastapi.testclient import TestClient
 import pytest
 
+from app.adapters.command_runner import CommandExecutionError, CommandOutput
+from app.sessions.models import ProofClaimOperation
 from app.adapters.evidence_store import StoredBlobRef
 from app.adapters.evidence_store import InMemoryEvidenceStore
 from app.sessions.models import ChallengeType
@@ -171,10 +173,30 @@ class _TrackingEvidenceEncryptor:
 
 
 class _Phase1ProofMinter:
-    def __init__(self, *, success: bool, reason: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        success: bool,
+        reason: str | None = None,
+        active_proof_id: str | None = None,
+    ) -> None:
         self.success = success
         self.reason = reason
+        self.active_proof_id = active_proof_id
+        self.find_calls: list[str] = []
         self.mint_calls: list[object] = []
+        self.renew_calls: list[tuple[str, object]] = []
+
+    def find_active_proof(self, wallet_address: str, *, now=None):
+        self.find_calls.append(wallet_address)
+        if self.active_proof_id is None:
+            return None
+        return SimpleNamespace(
+            proof_id=self.active_proof_id,
+            expires_at="2026-07-01T00:00:00+00:00",
+            object_id=self.active_proof_id,
+            metadata={"network": "mock-sui-testnet"},
+        )
 
     def mint_proof(self, session_result) -> SimpleNamespace:
         self.mint_calls.append(session_result)
@@ -188,6 +210,8 @@ class _Phase1ProofMinter:
             success=self.success,
             proof_id="0xproof_phase1",
             transaction_digest="0xtxn_phase1",
+            proof_operation="minted",
+            chain_network="sui-testnet",
             expires_at="2026-07-17T00:00:00+00:00",
             walrus_blob_id=walrus_blob_id,
             walrus_blob_object_id=walrus_blob_object_id,
@@ -201,13 +225,86 @@ class _Phase1ProofMinter:
             reason=self.reason,
         )
 
-    def renew_proof(self, wallet_address: str, previous_proof_id: str) -> SimpleNamespace:
+    def renew_proof(self, session_result, previous_proof_id: str) -> SimpleNamespace:
+        self.renew_calls.append((previous_proof_id, session_result))
         return SimpleNamespace(
             success=True,
             proof_id=previous_proof_id,
             expires_at="2026-07-17T00:00:00+00:00",
             transaction_digest="0xtxn_phase1_renew",
+            proof_operation="renewed",
+            chain_network="sui-testnet",
+            walrus_blob_id=getattr(session_result, "walrus_blob_id", None),
+            walrus_blob_object_id=getattr(session_result, "walrus_blob_object_id", None),
+            seal_identity=getattr(session_result, "seal_identity", None),
+            evidence_schema_version=getattr(session_result, "evidence_schema_version", None),
+            model_hash=getattr(session_result, "model_hash", None),
+            challenge_type=getattr(getattr(session_result, "challenge_type", None), "value", None),
             metadata={"network": "mock-sui-testnet"},
+        )
+
+    def prepare_wallet_claim(
+        self,
+        session_result,
+        *,
+        operation: ProofClaimOperation,
+        claim_id: str,
+        claim_expires_at_ms: int,
+        issued_at_ms: int,
+        expires_at_ms: int,
+        proof_object_id: str | None = None,
+    ) -> SimpleNamespace:
+        return SimpleNamespace(
+            session_id=getattr(session_result, "session_id", "sess_test"),
+            wallet_address=getattr(session_result, "wallet_address", "0xwallet"),
+            operation=operation,
+            package_id="0xpackage",
+            registry_object_id="0xregistry",
+            module_name="proof_of_human",
+            clock_object_id="0x6",
+            claim_id=claim_id,
+            claim_expires_at_ms=claim_expires_at_ms,
+            proof_object_id=proof_object_id,
+            walrus_blob_id=getattr(session_result, "walrus_blob_id", None),
+            walrus_blob_object_id=getattr(session_result, "walrus_blob_object_id", None),
+            seal_identity=getattr(session_result, "seal_identity", None),
+            evidence_schema_version=getattr(session_result, "evidence_schema_version", None),
+            model_hash=getattr(session_result, "model_hash", None),
+            confidence_bps=9815,
+            issued_at_ms=issued_at_ms,
+            expires_at_ms=expires_at_ms,
+            challenge_type=getattr(getattr(session_result, "challenge_type", None), "value", None),
+            signature_b64="bW9ja19zaWduYXR1cmU=",
+            chain_network="sui-testnet",
+        )
+
+
+class _RetryOnDuplicateProofMinter(_Phase1ProofMinter):
+    def __init__(self, *, success: bool, active_proof_id: str) -> None:
+        super().__init__(success=success, active_proof_id=None)
+        self.recovered_active_proof_id = active_proof_id
+
+    def find_active_proof(self, wallet_address: str, *, now=None):
+        self.find_calls.append(wallet_address)
+        if len(self.find_calls) == 1:
+            return None
+        return SimpleNamespace(
+            proof_id=self.recovered_active_proof_id,
+            expires_at="2026-07-01T00:00:00+00:00",
+            object_id=self.recovered_active_proof_id,
+            metadata={"network": "mock-sui-testnet"},
+        )
+
+    def mint_proof(self, session_result):
+        self.mint_calls.append(session_result)
+        raise CommandExecutionError(
+            "sui client call failed: Error executing transaction '0xtxn': 1st command aborted within function '0xpackage::proof_of_human::verify_and_mint' at instruction 37 with code 1",
+            CommandOutput(
+                args=("sui", "client", "call"),
+                returncode=1,
+                stdout="",
+                stderr="code 1",
+            ),
         )
 
 
@@ -314,12 +411,12 @@ def test_health_exposes_tuning_snapshot(client: TestClient) -> None:
     assert payload["tuning"]["minimum_step_frames"] == 2
     assert payload["tuning"]["quality_blur_threshold"] == 45.0
     assert payload["tuning"]["quality_min_face_size"] == 80
-    assert payload["tuning"]["turn_yaw_threshold_degrees"] == 18.0
+    assert payload["tuning"]["turn_yaw_threshold_degrees"] == 12.0
     assert payload["tuning"]["smile_ratio_threshold"] == 0.36
     assert payload["tuning"]["landmark_spotcheck_max_center_mismatch_px"] == 96.0
-    assert payload["tuning"]["motion_min_displacement"] == 0.002
+    assert payload["tuning"]["motion_min_displacement"] == 0.0015
     assert payload["tuning"]["motion_max_still_ratio"] == 0.8
-    assert payload["tuning"]["motion_min_transitions"] == 4
+    assert payload["tuning"]["motion_min_transitions"] == 2
     assert payload["model_details"]["human_face"]["enabled"] is True
     assert payload["model_details"]["human_face"]["ready"] is True
     assert payload["model_details"]["human_face"]["enforced"] is True
@@ -327,7 +424,7 @@ def test_health_exposes_tuning_snapshot(client: TestClient) -> None:
     assert payload["model_details"]["deepfake"]["enabled"] is True
     assert payload["model_details"]["deepfake"]["ready"] is True
     assert payload["model_details"]["deepfake"]["enforced"] is True
-    assert payload["tuning"]["deepfake_threshold"] == 0.65
+    assert payload["tuning"]["deepfake_threshold"] == 0.8
     assert payload["tuning"]["proof_minimum_confidence"] == 0.35
 
 
@@ -780,6 +877,40 @@ def test_full_mode_fails_when_human_face_gate_flags_non_human_subject(client: Te
         )
 
 
+def test_full_mode_human_face_gate_uses_session_average_not_every_frame(client: TestClient) -> None:
+    _force_sequence(client, [ChallengeType.SMILE])
+    create_response = client.post("/api/sessions", json=_session_payload("0xhuman-face-average-wallet"))
+    session = create_response.json()
+
+    mixed_scores = [0.91, 0.9, 0.49, 0.88]
+    with client.websocket_connect(session["ws_url"]) as websocket:
+        assert websocket.receive_json()["type"] == "session_ready"
+
+        for score in mixed_scores:
+            _send_frame_and_receive_progress(
+                websocket,
+                _frame_event(
+                    {
+                        "force_face_detected": True,
+                        "force_quality_pass": True,
+                        "force_spoof_score": 0.02,
+                        "force_human_face_score": score,
+                        "force_human_face_label": "a real human face",
+                        "force_deepfake_score": 0.12,
+                        "smile_ratio": 0.5,
+                    }
+                ),
+            )
+
+        websocket.send_json({"type": "finalize", "mode": "full"})
+        assert websocket.receive_json()["type"] == "processing"
+        terminal_event = websocket.receive_json()
+
+        assert terminal_event["type"] == "verified"
+        assert terminal_event["payload"]["failure_reason"] is None
+        assert terminal_event["payload"]["human_face_score"] == 0.795
+
+
 def test_full_mode_reports_proof_mint_failure_consistently(client: TestClient) -> None:
     service = client.app.state.session_service
     service.proof_minter.minimum_confidence = 0.99
@@ -810,16 +941,12 @@ def test_full_mode_reports_proof_mint_failure_consistently(client: TestClient) -
         assert websocket.receive_json()["type"] == "processing"
         terminal_event = websocket.receive_json()
 
-        assert terminal_event["type"] == "failed"
-        assert terminal_event["payload"]["failure_reason"] == "confidence_below_threshold"
-        assert (
-            terminal_event["payload"]["attack_analysis"]["failure_category"]
-            == "proof_mint_failure"
-        )
-        assert (
-            terminal_event["payload"]["attack_analysis"]["suspected_attack_family"]
-            == "none"
-        )
+        assert terminal_event["type"] == "verified"
+        assert terminal_event["payload"]["proof_id"] is None
+
+    mint_response = client.post(f"/api/sessions/{session['session_id']}/mint")
+    assert mint_response.status_code == 502
+    assert mint_response.json()["detail"] == "confidence_below_threshold"
 
 
 def test_full_mode_terminal_result_exposes_sui_walrus_and_seal_fields(client: TestClient) -> None:
@@ -837,9 +964,16 @@ def test_full_mode_terminal_result_exposes_sui_walrus_and_seal_fields(client: Te
 
     assert terminal_event["type"] == "verified"
     payload = terminal_event["payload"]
+    assert payload["proof_id"] is None
+
+    mint_response = client.post(f"/api/sessions/{session['session_id']}/mint")
+    assert mint_response.status_code == 200
+    payload = mint_response.json()
 
     assert payload["proof_id"] == "0xproof_phase1"
     assert payload["transaction_digest"] == "0xtxn_phase1"
+    assert payload["proof_operation"] == "minted"
+    assert payload["chain_network"] == "sui-testnet"
     assert payload["walrus_blob_id"] == tracking_store.put_results[0].blob_id
     assert payload["walrus_blob_object_id"] == tracking_store.put_results[0].blob_object_id
     assert payload["seal_identity"] == "seal_phase1_identity"
@@ -851,6 +985,8 @@ def test_full_mode_terminal_result_exposes_sui_walrus_and_seal_fields(client: Te
     persisted_result = session_response.json()["result"]
     assert persisted_result["proof_id"] == payload["proof_id"]
     assert persisted_result["transaction_digest"] == payload["transaction_digest"]
+    assert persisted_result["proof_operation"] == payload["proof_operation"]
+    assert persisted_result["chain_network"] == payload["chain_network"]
     assert persisted_result["walrus_blob_id"] == payload["walrus_blob_id"]
     assert persisted_result["walrus_blob_object_id"] == payload["walrus_blob_object_id"]
     assert persisted_result["seal_identity"] == payload["seal_identity"]
@@ -870,15 +1006,149 @@ def test_full_mode_deletes_blob_when_storage_succeeds_but_mint_fails(client: Tes
         challenge_sequence=[ChallengeType.SMILE],
     )
 
-    assert terminal_event["type"] == "failed"
-    assert terminal_event["payload"]["failure_reason"] == "mock_mint_failure"
+    assert terminal_event["type"] == "verified"
+    mint_response = client.post("/api/sessions/sess_missing/mint")
+    assert mint_response.status_code == 404
+
+    session_response = client.post("/api/sessions", json=_session_payload("0xphase1-cleanup-wallet-second"))
+    session = session_response.json()
+    with client.websocket_connect(session["ws_url"]) as websocket:
+        assert websocket.receive_json()["type"] == "session_ready"
+        for event in _challenge_frames("smile", spoof_score=0.02):
+            _send_frame_and_receive_progress(websocket, _mark_event_as_full_mode_success(event))
+        websocket.send_json({"type": "finalize", "mode": "full"})
+        assert websocket.receive_json()["type"] == "processing"
+        verified_event = websocket.receive_json()
+        assert verified_event["type"] == "verified"
+
+    mint_response = client.post(f"/api/sessions/{session['session_id']}/mint")
+    assert mint_response.status_code == 502
+    assert mint_response.json()["detail"] == "mock_mint_failure"
     assert tracking_store.deleted_blob_ids == [tracking_store.put_results[0].blob_id]
     assert tracking_store.get_blob(tracking_store.put_results[0].blob_id) is None
+
+
+def test_full_mode_renews_existing_proof_in_place(client: TestClient) -> None:
+    service = client.app.state.session_service
+    tracking_store = _TrackingEvidenceStore()
+    proof_minter = _Phase1ProofMinter(success=True, active_proof_id="0xproof_existing")
+    service.evidence_store = tracking_store
+    service.evidence_encryptor = _TrackingEvidenceEncryptor()
+    service.proof_minter = proof_minter
+
+    _, terminal_event = _run_full_mode_terminal_event(
+        client,
+        wallet_address="0xphase1-renew-wallet",
+        challenge_sequence=[ChallengeType.SMILE],
+    )
+
+    assert terminal_event["type"] == "verified"
     assert terminal_event["payload"]["proof_id"] is None
-    if "walrus_blob_id" in terminal_event["payload"]:
-        assert terminal_event["payload"]["walrus_blob_id"] is None
-    if "walrus_blob_object_id" in terminal_event["payload"]:
-        assert terminal_event["payload"]["walrus_blob_object_id"] is None
+
+    mint_response = client.post(f"/api/sessions/{terminal_event['payload']['session_id']}/mint")
+    assert mint_response.status_code == 200
+    payload = mint_response.json()
+    assert payload["proof_id"] == "0xproof_existing"
+    assert payload["proof_operation"] == "renewed"
+    assert payload["transaction_digest"] == "0xtxn_phase1_renew"
+    assert payload["chain_network"] == "sui-testnet"
+    assert proof_minter.find_calls == ["0xphase1-renew-wallet"]
+    assert proof_minter.mint_calls == []
+    assert proof_minter.renew_calls[0][0] == "0xproof_existing"
+
+
+def test_full_mode_retries_duplicate_mint_as_renew(client: TestClient) -> None:
+    service = client.app.state.session_service
+    tracking_store = _TrackingEvidenceStore()
+    proof_minter = _RetryOnDuplicateProofMinter(success=True, active_proof_id="0xproof_existing")
+    service.evidence_store = tracking_store
+    service.evidence_encryptor = _TrackingEvidenceEncryptor()
+    service.proof_minter = proof_minter
+
+    _, terminal_event = _run_full_mode_terminal_event(
+        client,
+        wallet_address="0xphase1-duplicate-wallet",
+        challenge_sequence=[ChallengeType.SMILE],
+    )
+
+    assert terminal_event["type"] == "verified"
+
+    mint_response = client.post(f"/api/sessions/{terminal_event['payload']['session_id']}/mint")
+    assert mint_response.status_code == 200
+    payload = mint_response.json()
+    assert payload["proof_id"] == "0xproof_existing"
+    assert payload["proof_operation"] == "renewed"
+    assert proof_minter.find_calls == [
+        "0xphase1-duplicate-wallet",
+        "0xphase1-duplicate-wallet",
+    ]
+    assert len(proof_minter.mint_calls) == 1
+
+
+def test_full_mode_prepares_wallet_claim_and_completes_receipt(client: TestClient) -> None:
+    service = client.app.state.session_service
+    tracking_store = _TrackingEvidenceStore()
+    service.evidence_store = tracking_store
+    service.evidence_encryptor = _TrackingEvidenceEncryptor()
+    service.proof_minter = _Phase1ProofMinter(success=True)
+
+    session, terminal_event = _run_full_mode_terminal_event(
+        client,
+        wallet_address="0xphase1-claim-wallet",
+        challenge_sequence=[ChallengeType.SMILE],
+    )
+
+    assert terminal_event["type"] == "verified"
+    claim_response = client.post(f"/api/sessions/{session['session_id']}/claim")
+    assert claim_response.status_code == 200
+    prepared = claim_response.json()
+    assert prepared["operation"] == "mint"
+    assert prepared["walrus_blob_id"] == tracking_store.put_results[0].blob_id
+    assert prepared["walrus_blob_object_id"] == tracking_store.put_results[0].blob_object_id
+    assert prepared["seal_identity"] == "seal_phase1_identity"
+
+    complete_response = client.post(
+        f"/api/sessions/{session['session_id']}/claim/complete",
+        json={
+            "transaction_digest": "0xtxn_claim_complete",
+            "proof_id": "0xproof_claim_complete",
+        },
+    )
+    assert complete_response.status_code == 200
+    payload = complete_response.json()
+    assert payload["proof_id"] == "0xproof_claim_complete"
+    assert payload["transaction_digest"] == "0xtxn_claim_complete"
+    assert payload["proof_operation"] == "minted"
+    assert payload["walrus_blob_id"] == prepared["walrus_blob_id"]
+
+
+def test_full_mode_cancels_wallet_claim_and_cleans_up_blob(client: TestClient) -> None:
+    service = client.app.state.session_service
+    tracking_store = _TrackingEvidenceStore()
+    service.evidence_store = tracking_store
+    service.evidence_encryptor = _TrackingEvidenceEncryptor()
+    service.proof_minter = _Phase1ProofMinter(success=True)
+
+    session, terminal_event = _run_full_mode_terminal_event(
+        client,
+        wallet_address="0xphase1-claim-cancel-wallet",
+        challenge_sequence=[ChallengeType.SMILE],
+    )
+
+    assert terminal_event["type"] == "verified"
+    claim_response = client.post(f"/api/sessions/{session['session_id']}/claim")
+    assert claim_response.status_code == 200
+    prepared = claim_response.json()
+
+    cancel_response = client.post(
+        f"/api/sessions/{session['session_id']}/claim/cancel",
+        json={"reason": "Wallet approval was cancelled."},
+    )
+    assert cancel_response.status_code == 200
+    payload = cancel_response.json()
+    assert payload["proof_id"] is None
+    assert payload["walrus_blob_id"] is None
+    assert tracking_store.deleted_blob_ids == [prepared["walrus_blob_id"]]
 
 
 def test_order_enforcement_prevents_later_step_from_counting_early(client: TestClient) -> None:
@@ -1063,6 +1333,52 @@ def test_sequence_step_requires_configured_hold_window(client: TestClient) -> No
         assert progress["payload"]["current_challenge_index"] == 1
         assert progress["payload"]["completed_challenges"] == ["turn_right"]
         assert progress["payload"]["challenge_type"] == "smile"
+
+
+def test_finalize_ready_turns_true_once_the_challenge_sequence_is_complete(client: TestClient) -> None:
+    _force_sequence(client, [ChallengeType.TURN_RIGHT, ChallengeType.SMILE])
+    create_response = client.post("/api/sessions", json=_session_payload("0xmint-ready-wallet"))
+    session = create_response.json()
+
+    with client.websocket_connect(session["ws_url"]) as websocket:
+        assert websocket.receive_json()["type"] == "session_ready"
+
+        for event in _challenge_frames("turn_right", spoof_score=0.02):
+            _, progress = _send_frame_and_receive_progress(websocket, event)
+
+        for event in _challenge_frames("smile", spoof_score=0.02)[:2]:
+            _, progress = _send_frame_and_receive_progress(websocket, event)
+
+        assert progress["payload"]["completed_challenges"] == ["turn_right", "smile"]
+        assert progress["payload"]["progress"] == 1.0
+        assert progress["payload"]["message"] == "Challenge sequence complete. Mint is ready."
+        assert progress["payload"]["finalize_ready"] is True
+
+
+def test_finalize_is_blocked_until_the_challenge_sequence_is_complete(client: TestClient) -> None:
+    _force_sequence(client, [ChallengeType.TURN_RIGHT, ChallengeType.SMILE])
+    create_response = client.post("/api/sessions", json=_session_payload("0xfinalize-block-wallet"))
+    session = create_response.json()
+
+    with client.websocket_connect(session["ws_url"]) as websocket:
+        assert websocket.receive_json()["type"] == "session_ready"
+
+        for event in _challenge_frames("turn_right", spoof_score=0.02)[:2]:
+            _send_frame_and_receive_progress(websocket, event)
+
+        websocket.send_json(
+            {
+                "type": "finalize",
+                "timestamp": "2026-04-19T00:00:00Z",
+                "mode": "full",
+            }
+        )
+        processing_event = websocket.receive_json()
+        error_event = websocket.receive_json()
+
+        assert processing_event["type"] == "processing"
+        assert error_event["type"] == "error"
+        assert "collecting security evidence" in error_event["payload"]["message"]
 
 
 def test_quality_gate_blocks_progress_until_good_frame_arrives(client: TestClient) -> None:

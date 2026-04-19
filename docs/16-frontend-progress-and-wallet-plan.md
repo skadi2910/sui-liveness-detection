@@ -1,5 +1,7 @@
 # Frontend Progress And Wallet Login
 
+Latest combined frontend + smart-contract integration status now lives in [17-frontend-smart-contract-integration-progress.md](/Users/skadi2910/projects/sui-liveness-detection/docs/17-frontend-smart-contract-integration-progress.md). This file remains a historical frontend checkpoint.
+
 **Date:** April 19, 2026
 
 ## Summary

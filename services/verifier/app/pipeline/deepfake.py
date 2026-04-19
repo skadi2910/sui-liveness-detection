@@ -67,7 +67,7 @@ class MockDeepfakeEvaluator(DeepfakeEvaluator):
     def __init__(
         self,
         *,
-        threshold: float = 0.65,
+        threshold: float = 0.80,
         enforce_decision: bool = False,
         model_hash: str = "sha256:mock-deepfake-v1",
     ) -> None:
@@ -149,7 +149,7 @@ class OnnxDeepfakeEvaluator(DeepfakeEvaluator):
         self,
         *,
         model_path: str,
-        threshold: float = 0.65,
+        threshold: float = 0.80,
         enforce_decision: bool = False,
     ) -> None:
         import onnxruntime as ort

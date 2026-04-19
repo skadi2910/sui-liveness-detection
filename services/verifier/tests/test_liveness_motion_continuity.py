@@ -82,3 +82,21 @@ def test_motion_continuity_skips_enforcement_when_landmark_positions_are_missing
     assert result.passed is True
     assert result.progress == 1.0
     assert result.message == "Head turn left confirmed"
+
+
+def test_nod_accepts_downward_motion_and_return_toward_center() -> None:
+    evaluator = MockLivenessEvaluator(
+        nod_pitch_threshold=6.0,
+        motion_min_transitions=0,
+    )
+    frames = [
+        FrameInput(frame_index=0, metadata={"pitch": 0.5}),
+        FrameInput(frame_index=1, metadata={"pitch": 7.5}),
+        FrameInput(frame_index=2, metadata={"pitch": 1.0}),
+    ]
+
+    result = evaluator.evaluate(ChallengeType.NOD_HEAD, frames)
+
+    assert result.passed is True
+    assert result.progress == 1.0
+    assert result.message == "Head nod confirmed"

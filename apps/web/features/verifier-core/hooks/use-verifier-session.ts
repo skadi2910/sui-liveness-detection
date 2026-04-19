@@ -5,6 +5,7 @@ import type {
   ChallengeType,
   CreateSessionResponse,
   HealthResponse,
+  PreparedProofClaim,
   SessionRecordResponse,
   StepStatus,
   VerificationDebugPayload,
@@ -38,10 +39,11 @@ type SessionSnapshot = Pick<
 };
 
 export function useVerifierSession(params: {
-  walletAddress: string;
+  walletAddress?: string | null;
   verificationMode: VerificationMode;
   challengeSequenceOverride?: ChallengeType[] | null;
   autoFinalizeOnComplete?: boolean;
+  autoCaptureOnSocketOpen?: boolean;
   appendLog: AppendLog;
   appendDebugLogs: (debug: VerificationDebugPayload) => void;
   resetLogs: () => void;
@@ -54,6 +56,7 @@ export function useVerifierSession(params: {
   const finalizeTimerRef = useRef<number | null>(null);
   const finalizeRequestedRef = useRef(false);
   const autoFinalizeOnCompleteRef = useRef(params.autoFinalizeOnComplete ?? true);
+  const captureEnabledRef = useRef(params.autoCaptureOnSocketOpen ?? true);
   const captureFrameRef = useRef(params.captureFrame);
   const sessionRef = useRef<CreateSessionResponse | null>(null);
   const resultRef = useRef<VerificationResult | null>(null);
@@ -73,11 +76,19 @@ export function useVerifierSession(params: {
   const [connectionState, setConnectionState] = useState("idle");
   const [busy, setBusy] = useState(false);
   const [finalizeRequested, setFinalizeRequested] = useState(false);
+  const [mintRequested, setMintRequested] = useState(false);
+  const [captureActive, setCaptureActive] = useState(params.autoCaptureOnSocketOpen ?? true);
+  const [finalizeReady, setFinalizeReady] = useState(false);
   const modelsReady = health?.models === "ready";
 
   useEffect(() => {
     autoFinalizeOnCompleteRef.current = params.autoFinalizeOnComplete ?? true;
   }, [params.autoFinalizeOnComplete]);
+
+  useEffect(() => {
+    captureEnabledRef.current = params.autoCaptureOnSocketOpen ?? true;
+    setCaptureActive(params.autoCaptureOnSocketOpen ?? true);
+  }, [params.autoCaptureOnSocketOpen]);
 
   useEffect(() => {
     captureFrameRef.current = params.captureFrame;
@@ -119,10 +130,7 @@ export function useVerifierSession(params: {
   }
 
   function cleanupSocket() {
-    if (captureTimerRef.current !== null) {
-      window.clearInterval(captureTimerRef.current);
-      captureTimerRef.current = null;
-    }
+    stopCapture({ preserveIntent: true });
     if (finalizeTimerRef.current !== null) {
       window.clearTimeout(finalizeTimerRef.current);
       finalizeTimerRef.current = null;
@@ -133,7 +141,65 @@ export function useVerifierSession(params: {
     }
     finalizeRequestedRef.current = false;
     setFinalizeRequested(false);
+    setMintRequested(false);
     params.resetCaptureState();
+  }
+
+  function beginCaptureLoop() {
+    if (captureTimerRef.current !== null) {
+      return;
+    }
+    captureTimerRef.current = window.setInterval(() => {
+      captureFrameRef.current(socketRef.current);
+    }, captureIntervalMs);
+  }
+
+  function startCapture() {
+    if (finalizeRequestedRef.current || resultRef.current) {
+      setStatusMessage("Verification is already finalized for this session.");
+      params.appendLog("pipeline", "Capture start blocked", {
+        reason: "session_already_finalized",
+      });
+      return;
+    }
+
+    if (finalizeReady) {
+      setStatusMessage(
+        "Live checks are already complete. Finalize verification to receive the server verdict.",
+      );
+      params.appendLog("pipeline", "Capture start blocked", {
+        reason: "finalize_ready",
+      });
+      return;
+    }
+
+    if (captureTimerRef.current !== null || captureEnabledRef.current) {
+      setStatusMessage("Verification is already running. Finish the live challenge before continuing.");
+      params.appendLog("pipeline", "Capture start blocked", {
+        reason: "capture_already_running",
+      });
+      return;
+    }
+
+    captureEnabledRef.current = true;
+    setCaptureActive(true);
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      beginCaptureLoop();
+      setStatusMessage("Verification in progress. Follow the live challenge guidance.");
+      params.appendLog("pipeline", "Capture loop started");
+    }
+  }
+
+  function stopCapture(options?: { preserveIntent?: boolean }) {
+    if (captureTimerRef.current !== null) {
+      window.clearInterval(captureTimerRef.current);
+      captureTimerRef.current = null;
+    }
+    if (!options?.preserveIntent) {
+      captureEnabledRef.current = false;
+      setCaptureActive(false);
+      params.appendLog("pipeline", "Capture loop stopped");
+    }
   }
 
   function applySessionSnapshot(snapshot: SessionSnapshot) {
@@ -147,6 +213,7 @@ export function useVerifierSession(params: {
     setCurrentChallengeIndex(snapshot.current_challenge_index ?? 0);
     setCompletedChallenges(normalizeCompletedChallenges(snapshot.completed_challenges));
     setStepStatus("pending");
+    setFinalizeReady(false);
     setConnectionState("connecting");
     setStatusMessage(
       `Sequence ready: ${normalizedSequence.map(challengeLabel).join(" -> ") || challengeLabel(snapshot.challenge_type)}`,
@@ -160,9 +227,11 @@ export function useVerifierSession(params: {
     websocket.onopen = () => {
       setConnectionState("open");
       params.appendLog("pipeline", "WebSocket open", { session_id: snapshot.session_id });
-      captureTimerRef.current = window.setInterval(() => {
-        captureFrameRef.current(socketRef.current);
-      }, captureIntervalMs);
+      if (captureEnabledRef.current) {
+        beginCaptureLoop();
+      } else {
+        setStatusMessage("Session connected. Open the webcam and press Verify when you are ready.");
+      }
     };
 
     websocket.onmessage = (event) => {
@@ -264,6 +333,7 @@ export function useVerifierSession(params: {
     completed_challenges?: ChallengeType[];
     step_status?: StepStatus;
     progress?: number;
+    finalize_ready?: boolean;
     message?: string;
     debug?: VerificationDebugPayload | null;
   }) {
@@ -275,6 +345,7 @@ export function useVerifierSession(params: {
     setCompletedChallenges(normalizeCompletedChallenges(payload.completed_challenges));
     if (payload.step_status) setStepStatus(payload.step_status);
     if (typeof payload.progress === "number") setProgress(payload.progress);
+    if (typeof payload.finalize_ready === "boolean") setFinalizeReady(payload.finalize_ready);
     if (typeof payload.message === "string") setStatusMessage(payload.message);
     if ("debug" in payload) setBackendDebug(payload.debug ?? null);
   }
@@ -300,6 +371,7 @@ export function useVerifierSession(params: {
 
     finalizeRequestedRef.current = true;
     setFinalizeRequested(true);
+    stopCapture({ preserveIntent: true });
     socketRef.current.send(
       JSON.stringify({
         type: "finalize",
@@ -312,7 +384,157 @@ export function useVerifierSession(params: {
     });
   }
 
+  async function sendMint() {
+    if (!sessionRef.current) {
+      setStatusMessage("Mint unavailable: session is not loaded.");
+      return;
+    }
+    if (!resultRef.current || resultRef.current.status !== "verified" || resultRef.current.proof_id) {
+      setStatusMessage("Mint unavailable: finalize verification successfully first.");
+      return;
+    }
+
+    setMintRequested(true);
+    setStatusMessage("Minting proof and storing encrypted evidence...");
+
+    try {
+      const response = await fetch(`${httpBase}/api/sessions/${sessionRef.current.session_id}/mint`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({ detail: "Mint failed." }));
+        throw new Error(payload.detail ?? "Mint failed.");
+      }
+
+      const minted = (await response.json()) as VerificationResult;
+      setResult(minted);
+      setStatusMessage("Proof minted successfully.");
+      params.appendLog("pipeline", "Mint requested", { session_id: sessionRef.current.session_id });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Mint failed.";
+      setStatusMessage(message);
+      params.appendLog("pipeline", "Mint failed", { message, session_id: sessionRef.current.session_id });
+    } finally {
+      setMintRequested(false);
+    }
+  }
+
+  async function prepareMintClaim() {
+    if (!sessionRef.current) {
+      setStatusMessage("Mint unavailable: session is not loaded.");
+      return null;
+    }
+    if (!resultRef.current || resultRef.current.status !== "verified" || resultRef.current.proof_id) {
+      setStatusMessage("Mint unavailable: finalize verification successfully first.");
+      return null;
+    }
+
+    setMintRequested(true);
+    setStatusMessage("Preparing the wallet claim and encrypted evidence receipt...");
+
+    try {
+      const response = await fetch(`${httpBase}/api/sessions/${sessionRef.current.session_id}/claim`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({ detail: "Could not prepare proof claim." }));
+        throw new Error(payload.detail ?? "Could not prepare proof claim.");
+      }
+
+      const prepared = (await response.json()) as PreparedProofClaim;
+      params.appendLog("pipeline", "Wallet claim prepared", {
+        session_id: sessionRef.current.session_id,
+        operation: prepared.operation,
+      });
+      setStatusMessage("Approve the wallet transaction to mint the proof.");
+      return prepared;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not prepare proof claim.";
+      setStatusMessage(message);
+      setMintRequested(false);
+      params.appendLog("pipeline", "Wallet claim preparation failed", {
+        message,
+        session_id: sessionRef.current.session_id,
+      });
+      throw error;
+    }
+  }
+
+  async function completeMintClaim(transactionDigest: string, proofId?: string | null) {
+    if (!sessionRef.current) {
+      throw new Error("Mint completion unavailable: session is not loaded.");
+    }
+
+    try {
+      const response = await fetch(`${httpBase}/api/sessions/${sessionRef.current.session_id}/claim/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transaction_digest: transactionDigest,
+          proof_id: proofId ?? undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({ detail: "Could not complete proof mint." }));
+        throw new Error(payload.detail ?? "Could not complete proof mint.");
+      }
+
+      const minted = (await response.json()) as VerificationResult;
+      setResult(minted);
+      setStatusMessage("Proof minted successfully.");
+      params.appendLog("pipeline", "Wallet mint completed", {
+        session_id: sessionRef.current.session_id,
+        transaction_digest: transactionDigest,
+      });
+      return minted;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not complete proof mint.";
+      setStatusMessage(message);
+      params.appendLog("pipeline", "Wallet mint completion failed", {
+        message,
+        session_id: sessionRef.current.session_id,
+        transaction_digest: transactionDigest,
+      });
+      throw error;
+    } finally {
+      setMintRequested(false);
+    }
+  }
+
+  async function cancelMintClaim(reason: string) {
+    if (!sessionRef.current) {
+      setMintRequested(false);
+      return;
+    }
+
+    try {
+      await fetch(`${httpBase}/api/sessions/${sessionRef.current.session_id}/claim/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      params.appendLog("pipeline", "Wallet mint cancelled", {
+        reason,
+        session_id: sessionRef.current.session_id,
+      });
+    } finally {
+      setMintRequested(false);
+      setStatusMessage(reason);
+    }
+  }
+
   async function startSession() {
+    if (!params.walletAddress?.trim()) {
+      setStatusMessage("Connect a Sui wallet before starting a verification session.");
+      params.appendLog("pipeline", "Session start blocked", {
+        reason: "wallet_required",
+      });
+      return;
+    }
+
     if (!modelsReady) {
       setStatusMessage("Backend models are still loading. Please wait a moment.");
       params.appendLog("pipeline", "Session start blocked", {
@@ -328,11 +550,14 @@ export function useVerifierSession(params: {
     setResult(null);
     setProgress(0);
     setBackendDebug(null);
+    setFinalizeReady(false);
     setChallengeSequence([]);
     setCompletedChallenges([]);
     setCurrentChallengeIndex(0);
     setStepStatus("pending");
     setFinalizeRequested(false);
+    captureEnabledRef.current = params.autoCaptureOnSocketOpen ?? true;
+    setCaptureActive(params.autoCaptureOnSocketOpen ?? true);
     params.resetSummary();
     params.resetLogs();
     setStatusMessage("Creating session...");
@@ -381,6 +606,7 @@ export function useVerifierSession(params: {
     setResult(null);
     setBackendDebug(null);
     setFinalizeRequested(false);
+    setFinalizeReady(false);
     setStatusMessage("Restoring session...");
 
     try {
@@ -465,8 +691,17 @@ export function useVerifierSession(params: {
     connectionState,
     busy,
     finalizeRequested,
+    mintRequested,
+    captureActive,
+    finalizeReady,
     startSession,
     connectToSession,
+    startCapture,
+    stopCapture,
     sendFinalize,
+    sendMint,
+    prepareMintClaim,
+    completeMintClaim,
+    cancelMintClaim,
   };
 }

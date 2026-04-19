@@ -183,6 +183,8 @@ class VerificationResult:
     spoof_score: float
     proof_id: str | None = None
     transaction_digest: str | None = None
+    proof_operation: str | None = None
+    chain_network: str | None = None
     walrus_blob_id: str | None = None
     walrus_blob_object_id: str | None = None
     seal_identity: str | None = None

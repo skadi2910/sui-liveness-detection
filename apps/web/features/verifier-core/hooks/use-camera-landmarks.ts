@@ -10,6 +10,10 @@ import type {
 import {
   browserLandmarksEnabled,
 } from "../lib/constants";
+import {
+  buildFrameEventMetadata,
+  buildLandmarkEventMetadata,
+} from "../lib/capture-payload";
 import { processLandmarkResult } from "../lib/landmarks";
 import type {
   BrowserLandmark,
@@ -26,6 +30,7 @@ type AppendLog = (section: "pipeline" | "detection" | "signals", summary: string
 export function useCameraLandmarks(params: {
   appendLog: AppendLog;
   onMetrics: (metrics: LandmarkMetrics) => void;
+  autoRequestCamera?: boolean;
 }) {
   type VideoWithFrameCallback = HTMLVideoElement & {
     requestVideoFrameCallback?: (
@@ -57,7 +62,7 @@ export function useCameraLandmarks(params: {
   const frameCounterRef = useRef(0);
 
   const [cameraState, setCameraState] = useState<"idle" | "ready" | "error">("idle");
-  const [cameraMessage, setCameraMessage] = useState("Requesting webcam access...");
+  const [cameraMessage, setCameraMessage] = useState("Open the webcam when you are ready to verify.");
   const [landmarkState, setLandmarkState] = useState<LandmarkEngineState>("loading");
   const [landmarkMessage, setLandmarkMessage] = useState("Loading browser face landmarks...");
   const [landmarkMetrics, setLandmarkMetrics] = useState<LandmarkMetrics>(
@@ -65,8 +70,7 @@ export function useCameraLandmarks(params: {
   );
 
   function consumeLandmarkMetadata(includeTrackedSignals: boolean): Record<string, unknown> {
-    const packet = latestLandmarkPacketRef.current;
-    const metadata = includeTrackedSignals ? { ...(packet?.metadata ?? {}) } : {};
+    const metadata: Record<string, unknown> = {};
     const pendingSignals = pendingSignalsRef.current;
 
     if (pendingSignals.blinks > 0) {
@@ -91,6 +95,18 @@ export function useCameraLandmarks(params: {
   }
 
   async function requestCamera() {
+    if (mediaStreamRef.current) {
+      if (videoRef.current && videoRef.current.srcObject !== mediaStreamRef.current) {
+        videoRef.current.srcObject = mediaStreamRef.current;
+        await videoRef.current.play();
+      }
+      setCameraState("ready");
+      setCameraMessage("Webcam ready.");
+      return;
+    }
+
+    setCameraMessage("Requesting webcam access...");
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -115,6 +131,30 @@ export function useCameraLandmarks(params: {
       setCameraMessage(message);
       params.appendLog("detection", "Camera error", { message });
     }
+  }
+
+  function closeCamera() {
+    stopLandmarkLoop();
+    landmarkPassInFlightRef.current = false;
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+    latestFaceRef.current = null;
+    latestLandmarkPacketRef.current = null;
+    lastEyesClosedRef.current = false;
+    setCameraState("idle");
+    setCameraMessage("Webcam closed.");
+    setLandmarkMetrics(emptyLandmarkMetrics());
+    setLandmarkMessage(
+      landmarkState === "ready"
+        ? "Open the webcam to begin face tracking."
+        : "Loading browser face landmarks...",
+    );
+    resetCaptureState();
+    params.appendLog("detection", "Webcam stream closed");
   }
 
   function processLandmarks(resultPayload: BrowserLandmarkResult) {
@@ -286,13 +326,15 @@ export function useCameraLandmarks(params: {
     frameCounterRef.current += 1;
     const frameNumber = frameCounterRef.current;
 
-    const metadata = {
-      ...consumeLandmarkMetadata(options?.includeTrackedSignals ?? true),
-      ...(options?.extraMetadata ?? {}),
-      frame_number: frameNumber,
-      frame_width: width,
-      frame_height: height,
-    };
+    const trackedSignalMetadata = consumeLandmarkMetadata(
+      options?.includeTrackedSignals ?? true,
+    );
+    const metadata = buildFrameEventMetadata({
+      extraMetadata: options?.extraMetadata,
+      frameNumber,
+      width,
+      height,
+    });
 
     const imageBase64 = canvas.toDataURL("image/jpeg", 0.75).split(",")[1] ?? "";
     socket.send(
@@ -311,13 +353,14 @@ export function useCameraLandmarks(params: {
           type: "landmarks",
           timestamp: new Date().toISOString(),
           landmarks: packet.landmarks,
-          metadata: {
-            ...packet.metadata,
-            ...metadata,
-            frame_number: frameNumber,
-            frame_width: width,
-            frame_height: height,
-          },
+          metadata: buildLandmarkEventMetadata({
+            packetMetadata: packet.metadata,
+            trackedSignalMetadata,
+            extraMetadata: options?.extraMetadata,
+            frameNumber,
+            width,
+            height,
+          }),
         }),
       );
     }
@@ -331,11 +374,12 @@ export function useCameraLandmarks(params: {
   }
 
   useEffect(() => {
-    void requestCamera();
+    if (params.autoRequestCamera ?? true) {
+      void requestCamera();
+    }
 
     return () => {
-      stopLandmarkLoop();
-      landmarkPassInFlightRef.current = false;
+      closeCamera();
       const activeDetector = detectorRef.current;
       detectorRef.current = null;
       if (activeDetector) {
@@ -347,8 +391,6 @@ export function useCameraLandmarks(params: {
           });
         }
       }
-      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-      mediaStreamRef.current = null;
     };
   }, []);
 
@@ -405,7 +447,11 @@ export function useCameraLandmarks(params: {
 
         detectorRef.current = detector;
         setLandmarkState("ready");
-        setLandmarkMessage("TensorFlow.js face landmarks ready.");
+        setLandmarkMessage(
+          mediaStreamRef.current
+            ? "TensorFlow.js face landmarks ready."
+            : "Open the webcam to begin face tracking.",
+        );
         params.appendLog("detection", "Landmark detector ready", {
           model: "MediaPipeFaceMesh",
           runtime: "tfjs",
@@ -470,6 +516,8 @@ export function useCameraLandmarks(params: {
     landmarkMessage,
     landmarkMetrics,
     captureFrame,
+    requestCamera,
+    closeCamera,
     resetCaptureState,
   };
 }
