@@ -266,6 +266,101 @@ From left to right, the system works like this:
 7. The Move contract records the proof and links the encrypted evidence references.
 8. The app returns the final result receipt to the user.
 
+## Smart Contract Stack Explained
+
+This project uses three distinct infrastructure layers in the proof phase: Sui, Seal, and Walrus. They work together, but each one solves a different problem.
+
+### Sui: on-chain proof ownership and audit record
+
+Sui is the trust and ownership layer.
+
+The Move contract stores the proof itself:
+
+- who owns the proof
+- when it was issued
+- when it expires
+- what challenge type was completed
+- what confidence level was accepted
+- which Walrus blob holds the encrypted evidence
+- which Seal identity was used for the encrypted payload
+
+In other words, Sui is where the system writes the durable proof receipt.
+
+In this repo, the Move package is responsible for:
+
+- minting a new `ProofOfHuman`
+- renewing an existing proof
+- revoking a proof
+- validating signed wallet claims
+- preventing replayed or expired claims
+
+### Seal: encryption and access identity
+
+Seal is the confidentiality layer.
+
+Seal is used before anything is stored in Walrus. The verifier assembles the retained evidence package and encrypts it with Seal so the raw evidence is not written to storage in plaintext.
+
+Seal gives us:
+
+- encrypted evidence bytes
+- a stable `seal_identity`
+
+That `seal_identity` becomes the logical identifier for the encrypted evidence record. It is later written into the Sui proof so the on-chain record and the encrypted evidence can be tied together.
+
+So Seal answers:
+
+- how is the evidence protected?
+- what encrypted payload identity are we referring to?
+
+### Walrus: blob storage for encrypted evidence
+
+Walrus is the storage layer.
+
+After the evidence is encrypted with Seal, the ciphertext is uploaded to Walrus. Walrus stores the encrypted blob and returns:
+
+- `walrus_blob_id`
+- `walrus_blob_object_id`
+
+These values are then included in the Sui proof metadata.
+
+So Walrus answers:
+
+- where is the encrypted evidence stored?
+- how do we refer to that encrypted blob later?
+
+### How they work together
+
+The relationship is:
+
+1. The verifier decides the session is valid.
+2. The verifier encrypts the retained evidence with Seal.
+3. The verifier stores the encrypted ciphertext in Walrus.
+4. The frontend wallet signs the Sui transaction.
+5. The Move contract writes the proof on-chain with:
+   - proof ownership
+   - Walrus blob references
+   - Seal identity
+   - confidence and expiry metadata
+
+That means:
+
+- Sui stores the proof record
+- Seal protects the evidence contents
+- Walrus stores the encrypted bytes
+
+### Why the system is split this way
+
+This separation keeps the system practical and auditable:
+
+- raw evidence does not bloat on-chain state
+- sensitive evidence is not left unencrypted in storage
+- the user still gets an on-chain proof they can inspect and reference
+- the app can show proof receipts and SuiScan links without exposing underlying evidence
+
+This is the core design principle of the project:
+
+**proof metadata on-chain, encrypted evidence off-chain, linked by stable identifiers.**
+
 ## Current User Flow
 
 1. Open `/app`.
@@ -352,6 +447,53 @@ npm run dev
 Frontend app:
 
 - [http://localhost:3000/app](http://localhost:3000/app)
+
+## Docker
+
+The repository now includes Docker support for the frontend and backend.
+
+The Docker stack is intended for a clean local application environment:
+
+- `web` for the Next.js frontend
+- `verifier` for the FastAPI backend
+- `redis` for verifier session state
+
+By default, the Docker compose stack is configured for a Docker-friendly local workflow:
+
+- verifier runs with Redis enabled
+- chain/storage/encryption adapters default to mock or local-safe modes
+- frontend talks to the verifier through `localhost`
+
+### Start the Docker stack
+
+```bash
+cd /Users/skadi2910/projects/sui-liveness-detection
+docker compose up --build
+```
+
+### Docker endpoints
+
+- frontend: [http://localhost:3000](http://localhost:3000)
+- verifier: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
+- redis: `localhost:6379`
+
+### Important Docker note
+
+The included Docker setup is best for the local app stack itself.
+
+For the full real testnet flow with:
+
+- wallet-signed minting
+- real Sui package ids
+- real Walrus uploads
+- real Seal server configuration
+
+you will usually still want to provide the relevant frontend and verifier environment values explicitly, and in some cases continue using host-installed Sui/Walrus tooling depending on your local machine and wallet setup.
+
+So the Docker setup should be thought of as:
+
+- a clean containerized frontend/backend runtime
+- not a guarantee that every external blockchain/storage dependency is fully container-managed out of the box
 
 ## Useful Commands
 
