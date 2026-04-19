@@ -47,29 +47,224 @@ The current product flow is:
 - Walrus-backed encrypted evidence storage
 - SuiScan-ready proof and transaction receipts
 
-## Architecture
+## System Architecture
 
-```text
-apps/web
-  -> starts verification session
-  -> streams camera frames and challenge metadata
-  -> requests final server verdict
-  -> requests a prepared proof claim
-  -> signs and submits the Sui transaction from the wallet
+### High-Level Architecture
 
-services/verifier
-  -> evaluates liveness, anti-spoof, deepfake, human-face gates
-  -> assembles retained evidence
-  -> encrypts evidence with Seal
-  -> stores ciphertext in Walrus
-  -> prepares a signed proof claim for the wallet
-  -> records final proof receipt metadata
+```mermaid
+flowchart LR
+    U["User"] --> W["Web App\nNext.js + React + dApp Kit"]
+    W -->|HTTP: create session / claim APIs| V["Verifier API\nFastAPI"]
+    W -->|WebSocket: frames + landmarks + control events| V
 
-contracts/move
-  -> validates the prepared claim on-chain
-  -> mints or renews ProofOfHuman
-  -> supports revoke and owner-side approval checks
+    subgraph Verifier Runtime
+      V --> S1["Session State\nchallenge sequence\nprogress\nresult state"]
+      V --> S2["Model Pipeline\nface detection\nliveness\nanti-spoof\ndeepfake\nhuman-face"]
+      V --> S3["Evidence Builder\nretained evidence package"]
+      V --> S4["Proof Claim Builder\nclaim payload + backend signature"]
+    end
+
+    S3 --> SE["Seal\nencrypt retained evidence"]
+    SE --> WA["Walrus\nstore ciphertext blob"]
+    S4 --> W
+
+    W -->|wallet signs transaction| SU["Sui Wallet"]
+    SU -->|claim_and_mint / claim_and_renew| SC["Move Contract\nProofOfHuman + ProofRegistry"]
+
+    WA --> SC
+    SC --> R["Result Receipt\nproof id\ntx digest\nWalrus refs\nSuiScan links"]
+    R --> W
+    W --> U
 ```
+
+### Layer-by-Layer Responsibilities
+
+#### 1. Frontend Layer: `apps/web`
+
+The frontend is the user-facing control surface for the entire journey.
+
+It is responsible for:
+
+- wallet connection and network context
+- webcam lifecycle management
+- browser-side face landmark extraction
+- opening the verification WebSocket stream
+- displaying challenge instructions and progress
+- triggering `Finalize verification`
+- requesting a prepared proof claim from the backend
+- opening the wallet signature flow for the mint transaction
+- showing the final proof receipt and SuiScan links
+
+The frontend does **not** make the verification decision itself. It gathers live capture data, presents real-time feedback, and acts as the signing surface for the final on-chain proof transaction.
+
+#### 2. Transport Layer: HTTP + WebSocket
+
+The system uses two communication paths between the frontend and backend.
+
+HTTP is used for control and lifecycle operations:
+
+- `POST /api/sessions`
+- `GET /api/sessions/{session_id}`
+- `POST /api/sessions/{session_id}/claim`
+- `POST /api/sessions/{session_id}/claim/complete`
+- `POST /api/sessions/{session_id}/claim/cancel`
+- `GET /api/health`
+
+WebSocket is used for the live verification stream:
+
+- browser sends frame snapshots, landmarks, and challenge signals
+- backend sends progress, challenge updates, processing, verified, and failed events
+
+This split keeps high-frequency capture traffic on WebSocket while preserving simple, explicit lifecycle control on REST endpoints.
+
+#### 3. Verifier Backend: `services/verifier`
+
+The verifier is the decision engine of the system.
+
+Its responsibilities include:
+
+- creating and restoring session state
+- selecting and sequencing liveness challenges
+- evaluating live frames against verification models
+- deciding whether a session is `verified` or `failed`
+- assembling the retained evidence payload
+- encrypting evidence and storing it
+- preparing the signed claim that the frontend wallet will submit on-chain
+
+Internally, the verifier coordinates several sub-pipelines:
+
+- face detection
+- face quality gating
+- liveness challenge completion
+- anti-spoof analysis
+- deepfake scoring
+- human-face screening
+- terminal confidence calculation
+- evidence packaging
+- proof claim generation
+
+#### 4. Evidence Pipeline: Seal + Walrus
+
+Once the backend approves a session, it moves into the evidence pipeline.
+
+That pipeline works like this:
+
+1. The verifier assembles the retained evidence package.
+2. The evidence package is encrypted with Seal.
+3. The encrypted bytes are uploaded to Walrus.
+4. The backend receives:
+   - `walrus_blob_id`
+   - `walrus_blob_object_id`
+   - `seal_identity`
+5. Those references are embedded into the proof claim and later written on-chain.
+
+This means the on-chain proof never stores raw evidence. It stores references to encrypted evidence plus the metadata needed to audit or retrieve it later.
+
+#### 5. Smart Contract Layer: `contracts/move`
+
+The Move package is the on-chain source of truth for proof ownership and proof metadata.
+
+Its responsibilities include:
+
+- minting new `ProofOfHuman` objects
+- renewing existing proofs
+- revoking proofs
+- validating backend-signed proof claims
+- preventing invalid or replayed claims
+- storing:
+  - proof owner
+  - confidence basis points
+  - expiry
+  - challenge type
+  - Seal identity
+  - Walrus blob identifiers
+  - evidence schema version
+  - model hash bundle
+
+The contract acts as the trust boundary between:
+
+- the backend, which verifies and prepares the signed claim
+- the user wallet, which authorizes the on-chain mint transaction
+
+#### 6. Result and Receipt Layer
+
+After a successful wallet transaction:
+
+- the frontend reports the transaction digest back to the verifier
+- the verifier finalizes the session receipt
+- the app shows the proof result
+- the user can inspect the proof and transaction in SuiScan
+
+This gives the user a normal dapp-style completion flow:
+
+- server verifies
+- wallet signs
+- chain records proof
+- app shows receipt
+
+### End-to-End Request Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Web as Web App
+    participant WS as WebSocket Stream
+    participant API as Verifier API
+    participant Models as Verifier Models
+    participant Seal as Seal
+    participant Walrus as Walrus
+    participant Wallet as Sui Wallet
+    participant Move as Move Contract
+
+    User->>Web: Open /app and connect wallet
+    User->>Web: Open webcam
+    Web->>API: POST /api/sessions
+    API-->>Web: session_id + challenge sequence
+    Web->>WS: Open session stream
+
+    loop Live verification
+      Web->>WS: frame + landmarks + challenge signals
+      WS->>Models: run face / liveness / spoof / deepfake / human-face checks
+      Models-->>Web: progress + guidance updates
+    end
+
+    User->>Web: Click Finalize verification
+    Web->>WS: finalize event
+    WS->>Models: run terminal decision
+    Models-->>API: verified or failed
+    API-->>Web: final verdict
+
+    alt Session verified
+      Web->>API: POST /api/sessions/{id}/claim
+      API->>Seal: encrypt retained evidence
+      Seal-->>API: encrypted payload + seal identity
+      API->>Walrus: store ciphertext
+      Walrus-->>API: blob ids
+      API-->>Web: prepared signed claim
+      User->>Web: Click Mint proof
+      Web->>Wallet: sign and submit transaction
+      Wallet->>Move: claim_and_mint / claim_and_renew
+      Move-->>Wallet: success
+      Wallet-->>Web: transaction digest
+      Web->>API: POST /claim/complete
+      API-->>Web: proof receipt
+    else Session failed
+      API-->>Web: failed result
+    end
+```
+
+### Practical Architecture Summary
+
+From left to right, the system works like this:
+
+1. The user opens the webcam in the frontend.
+2. The frontend streams capture data to the backend over WebSocket.
+3. The backend runs the verification models and decides whether the session is valid.
+4. If valid, the backend encrypts the retained evidence with Seal and stores it in Walrus.
+5. The backend prepares a signed proof claim for the frontend wallet.
+6. The wallet submits the Sui transaction.
+7. The Move contract records the proof and links the encrypted evidence references.
+8. The app returns the final result receipt to the user.
 
 ## Current User Flow
 
