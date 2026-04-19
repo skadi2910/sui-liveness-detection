@@ -47,8 +47,8 @@ export function AdminHeroPanel(props: {
   verificationMode: VerificationMode;
 }) {
   return (
-    <section className="panel hero-panel">
-      <div>
+    <section className="panel hero-panel admin-hero-panel">
+      <div className="admin-hero-copy">
         <p className="eyebrow">SUI HUMAN / ADMIN CONSOLE</p>
         <h1>Verifier testing and QA console</h1>
         <p className="lede">
@@ -186,7 +186,7 @@ export function SessionControlsPanel(props: {
   resultMode: string;
 }) {
   return (
-    <div className="panel control-panel">
+    <div className="panel control-panel admin-controls-panel">
       <div className="panel-header">
         <h2>Session Controls</h2>
         <p>{challengeHint(props.challengeType)}</p>
@@ -662,7 +662,7 @@ export function CalibrationExportPanel(props: {
 
 export function LogPanels(props: { logs: Record<HarnessLogSection, LogEntry[]> }) {
   return (
-    <section className="grid">
+    <section className="grid gap-6 xl:grid-cols-3">
       {(["pipeline", "detection", "signals"] as const).map((section) => (
         <div className="panel" key={section}>
           <div className="panel-header">

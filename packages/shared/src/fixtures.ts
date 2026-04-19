@@ -81,6 +81,12 @@ export const sampleVerificationResult: VerificationResult = {
   spoof_score: 0.03,
   max_spoof_score: 0.05,
   proof_id: "0xproof",
+  transaction_digest: "0xtxn_123abc456def7890",
+  walrus_blob_id: "walrus_blob_123",
+  walrus_blob_object_id: "0xwalrusobject123",
+  seal_identity: "seal_identity_sess_123",
+  evidence_schema_version: 1,
+  model_hash: "sha256:verifier-bundle-123",
   blob_id: "walrus_blob_123",
   expires_at: "2026-07-16T14:00:00Z",
 };
@@ -102,6 +108,7 @@ export const sampleEvidenceBlob: EvidenceBlob = {
     antispoof: "sha256:antispoof-model",
     face_detector: "sha256:face-detector-model",
   },
+  evidence_schema_version: 1,
   captured_at: "2026-04-17T14:00:00Z",
 };
 
@@ -197,6 +204,12 @@ export const sampleWsServerEvents: Record<string, WsServerEvent> = {
       spoof_score: 0.03,
       max_spoof_score: 0.05,
       proof_id: "0xproof",
+      transaction_digest: "0xtxn_123abc456def7890",
+      walrus_blob_id: "walrus_blob_123",
+      walrus_blob_object_id: "0xwalrusobject123",
+      seal_identity: "seal_identity_sess_123",
+      evidence_schema_version: 1,
+      model_hash: "sha256:verifier-bundle-123",
       blob_id: "walrus_blob_123",
       expires_at: "2026-07-16T14:00:00Z",
     },

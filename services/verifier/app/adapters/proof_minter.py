@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import hashlib
 from typing import Any
 
@@ -14,6 +14,12 @@ class MintResult:
     success: bool
     proof_id: str | None = None
     transaction_digest: str | None = None
+    walrus_blob_id: str | None = None
+    walrus_blob_object_id: str | None = None
+    seal_identity: str | None = None
+    evidence_schema_version: int | None = None
+    model_hash: str | None = None
+    challenge_type: str | None = None
     expires_at: str | None = None
     reason: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -25,6 +31,12 @@ class RenewResult:
     proof_id: str
     expires_at: str | None = None
     transaction_digest: str | None = None
+    walrus_blob_id: str | None = None
+    walrus_blob_object_id: str | None = None
+    seal_identity: str | None = None
+    evidence_schema_version: int | None = None
+    model_hash: str | None = None
+    challenge_type: str | None = None
     reason: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -60,11 +72,17 @@ class MockProofMinter(ProofMinter):
             ]
         )
         digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
-        expires_at = (datetime.utcnow() + timedelta(days=self.proof_ttl_days)).isoformat()
+        expires_at = (datetime.now(tz=UTC) + timedelta(days=self.proof_ttl_days)).isoformat()
         return MintResult(
             success=True,
             proof_id=f"0xproof_{digest[:24]}",
             transaction_digest=f"0xtxn_{digest[24:48]}",
+            walrus_blob_id=session_result.walrus_blob_id,
+            walrus_blob_object_id=session_result.walrus_blob_object_id,
+            seal_identity=session_result.seal_identity,
+            evidence_schema_version=session_result.evidence_schema_version,
+            model_hash=session_result.model_hash,
+            challenge_type=session_result.challenge_type.value,
             expires_at=expires_at,
             metadata={"network": "mock-sui-testnet", "proof_ttl_days": self.proof_ttl_days},
         )
@@ -72,7 +90,7 @@ class MockProofMinter(ProofMinter):
     def renew_proof(self, wallet_address: str, previous_proof_id: str) -> RenewResult:
         seed = f"{wallet_address}|{previous_proof_id}|renew"
         digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
-        expires_at = (datetime.utcnow() + timedelta(days=self.proof_ttl_days)).isoformat()
+        expires_at = (datetime.now(tz=UTC) + timedelta(days=self.proof_ttl_days)).isoformat()
         return RenewResult(
             success=True,
             proof_id=previous_proof_id,

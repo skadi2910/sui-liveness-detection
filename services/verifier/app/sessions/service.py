@@ -82,6 +82,7 @@ _FRIENDLY_CHALLENGE_POOL = [
     ChallengeType.OPEN_MOUTH,
 ]
 _ANTI_SPOOF_PREVIEW_FRAME_LIMIT = 8
+_EVIDENCE_SCHEMA_VERSION = 1
 
 
 class VerificationSessionService:
@@ -563,20 +564,48 @@ class VerificationSessionService:
         )
 
         proof_id: str | None = None
-        blob_id: str | None = None
+        transaction_digest: str | None = None
+        walrus_blob_id: str | None = None
+        walrus_blob_object_id: str | None = None
+        seal_identity: str | None = None
+        evidence_schema_version: int | None = None
+        model_hash: str | None = None
         expires_at = None
+
+        pre_mint_attack_analysis = build_attack_analysis(
+            human=human,
+            failure_reason=failure_reason,
+            spoof_score=antispoof.spoof_score,
+            max_spoof_score=antispoof.max_spoof_score,
+            antispoof_passed=antispoof.passed,
+            deepfake_enabled=deepfake.enabled,
+            deepfake_score=deepfake.deepfake_score,
+            max_deepfake_score=deepfake.max_deepfake_score,
+            deepfake_passed=deepfake.passed,
+        )
 
         if human and mode == VerificationMode.FULL:
             evidence = self.evidence_assembler.assemble(
+                evidence_schema_version=_EVIDENCE_SCHEMA_VERSION,
                 session_id=session.session_id,
                 wallet_address=session.wallet_address,
                 challenge_type=self._to_pipeline_challenge(session.challenge_type),
+                challenge_sequence=[step.value for step in session.challenge_sequence],
+                session_started_at=session.created_at.isoformat(),
+                session_completed_at=datetime.now(tz=UTC).isoformat(),
                 frames=usable_frames,
                 liveness=liveness,
                 antispoof=antispoof,
+                deepfake=deepfake,
+                human_face=human_face,
+                quality_evaluations=quality_evaluations,
                 face_detections=usable_face_detections,
+                attack_analysis=pre_mint_attack_analysis,
+                evaluation_mode=mode.value,
+                human=human,
+                confidence=confidence,
             )
-            encrypted_blob = self.evidence_encryptor.encrypt_for_wallet(
+            encrypted_evidence = self.evidence_encryptor.encrypt_for_wallet(
                 session.wallet_address,
                 json.loads(
                     json.dumps(
@@ -585,34 +614,81 @@ class VerificationSessionService:
                     )
                 ),
             )
-            blob_id = self.evidence_store.put_encrypted_blob(
-                encrypted_blob,
+            stored_blob = self.evidence_store.put_encrypted_blob(
+                encrypted_evidence.encrypted_bytes,
                 metadata={
                     "session_id": session.session_id,
                     "wallet_address": session.wallet_address,
                     "challenge_type": session.challenge_type.value,
+                    "seal_identity": encrypted_evidence.seal_identity,
+                    "evidence_schema_version": evidence.evidence_schema_version,
                 },
             )
+            walrus_blob_id = stored_blob.blob_id
+            walrus_blob_object_id = stored_blob.blob_object_id
+            seal_identity = encrypted_evidence.seal_identity
+            evidence_schema_version = evidence.evidence_schema_version
+            model_hash = evidence.model_hashes.get("verifier_bundle")
 
-            mint_result = self.proof_minter.mint_proof(
-                self._pipeline_result(
-                    session_id=session.session_id,
-                    wallet_address=session.wallet_address,
-                    challenge_type=self._to_pipeline_challenge(session.challenge_type),
-                    status=SessionStatus.VERIFIED,
-                    human=True,
-                    confidence=confidence,
-                    spoof_score=antispoof.spoof_score,
-                    blob_id=blob_id,
-                    failure_reason=None,
+            try:
+                mint_result = self.proof_minter.mint_proof(
+                    self._pipeline_result(
+                        session_id=session.session_id,
+                        wallet_address=session.wallet_address,
+                        challenge_type=self._to_pipeline_challenge(session.challenge_type),
+                        status=SessionStatus.VERIFIED,
+                        human=True,
+                        confidence=confidence,
+                        spoof_score=antispoof.spoof_score,
+                        walrus_blob_id=walrus_blob_id,
+                        walrus_blob_object_id=walrus_blob_object_id,
+                        seal_identity=seal_identity,
+                        evidence_schema_version=evidence_schema_version,
+                        model_hash=model_hash,
+                        failure_reason=None,
+                    )
                 )
-            )
-            if mint_result.success:
-                proof_id = mint_result.proof_id
-                expires_at = self._parse_datetime_string(mint_result.expires_at)
-            else:
+            except Exception as exc:
+                self.logger.exception(
+                    "proof mint raised after evidence storage",
+                    context={
+                        "session_id": session.session_id,
+                        "walrus_blob_id": walrus_blob_id,
+                        "seal_identity": seal_identity,
+                        "error": str(exc),
+                    },
+                )
+                self._cleanup_stored_blob(walrus_blob_id)
                 human = False
-                failure_reason = mint_result.reason or "mint_failed"
+                failure_reason = "mint_failed"
+                walrus_blob_id = None
+                walrus_blob_object_id = None
+                seal_identity = None
+                evidence_schema_version = None
+                model_hash = None
+            else:
+                if mint_result.success:
+                    proof_id = mint_result.proof_id
+                    transaction_digest = mint_result.transaction_digest
+                    walrus_blob_id = mint_result.walrus_blob_id or walrus_blob_id
+                    walrus_blob_object_id = (
+                        mint_result.walrus_blob_object_id or walrus_blob_object_id
+                    )
+                    seal_identity = mint_result.seal_identity or seal_identity
+                    evidence_schema_version = (
+                        mint_result.evidence_schema_version or evidence_schema_version
+                    )
+                    model_hash = mint_result.model_hash or model_hash
+                    expires_at = self._parse_datetime_string(mint_result.expires_at)
+                else:
+                    self._cleanup_stored_blob(walrus_blob_id)
+                    human = False
+                    failure_reason = mint_result.reason or "mint_failed"
+                    walrus_blob_id = None
+                    walrus_blob_object_id = None
+                    seal_identity = None
+                    evidence_schema_version = None
+                    model_hash = None
 
         attack_analysis = build_attack_analysis(
             human=human,
@@ -656,7 +732,13 @@ class VerificationSessionService:
             deepfake_enabled=deepfake.enabled,
             attack_analysis=attack_analysis,
             proof_id=proof_id,
-            blob_id=blob_id,
+            transaction_digest=transaction_digest,
+            walrus_blob_id=walrus_blob_id,
+            walrus_blob_object_id=walrus_blob_object_id,
+            seal_identity=seal_identity,
+            evidence_schema_version=evidence_schema_version,
+            model_hash=model_hash,
+            blob_id=walrus_blob_id,
             expires_at=expires_at,
             failure_reason=failure_reason,
         )
@@ -696,6 +778,8 @@ class VerificationSessionService:
                 "human_face_score": human_face.human_face_score,
                 "failure_reason": failure_reason,
                 "attack_family": attack_analysis["suspected_attack_family"],
+                "walrus_blob_id": walrus_blob_id,
+                "seal_identity": seal_identity,
             },
         )
         return result
@@ -1311,7 +1395,11 @@ class VerificationSessionService:
         human: bool,
         confidence: float,
         spoof_score: float,
-        blob_id: str | None,
+        walrus_blob_id: str | None,
+        walrus_blob_object_id: str | None,
+        seal_identity: str | None,
+        evidence_schema_version: int | None,
+        model_hash: str | None,
         failure_reason: str | None,
     ):
         from app.pipeline.types import VerificationResult as PipelineVerificationResult
@@ -1324,8 +1412,24 @@ class VerificationSessionService:
             human=human,
             confidence=confidence,
             spoof_score=spoof_score,
-            blob_id=blob_id,
+            walrus_blob_id=walrus_blob_id,
+            walrus_blob_object_id=walrus_blob_object_id,
+            seal_identity=seal_identity,
+            evidence_schema_version=evidence_schema_version,
+            model_hash=model_hash,
+            blob_id=walrus_blob_id,
             metadata={"failure_reason": failure_reason} if failure_reason else {},
+        )
+
+    def _cleanup_stored_blob(self, blob_id: str | None) -> None:
+        if blob_id is None:
+            return
+        deleted = self.evidence_store.delete_blob(blob_id)
+        if deleted:
+            return
+        self.logger.warning(
+            "stored evidence blob could not be deleted after mint failure",
+            context={"walrus_blob_id": blob_id},
         )
 
     def _parse_datetime_string(self, value: str | None) -> datetime | None:

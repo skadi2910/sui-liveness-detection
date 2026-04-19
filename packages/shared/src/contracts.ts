@@ -137,6 +137,7 @@ export interface EvidenceBlob {
   landmark_snapshot: LandmarkSnapshot;
   spoof_score_summary: SpoofScoreSummary;
   model_hashes: ModelHashes;
+  evidence_schema_version?: number;
   captured_at: string;
 }
 
@@ -178,6 +179,13 @@ export interface VerificationResult {
   deepfake_enabled?: boolean;
   attack_analysis?: AttackAnalysis | null;
   proof_id?: string;
+  transaction_digest?: string;
+  walrus_blob_id?: string;
+  walrus_blob_object_id?: string;
+  seal_identity?: string;
+  evidence_schema_version?: number;
+  model_hash?: string;
+  // Backward-compatible alias while the rest of the stack migrates to Walrus-specific naming.
   blob_id?: string;
   expires_at?: string;
   failure_reason?: string;

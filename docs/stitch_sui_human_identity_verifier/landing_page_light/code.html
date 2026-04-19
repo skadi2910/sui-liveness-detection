@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SUI_HUMAN | Sovereign Console</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700;900&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-bright": "#ffffff",
+                    "surface": "#f9f9f9",
+                    "inverse-primary": "#0055FF",
+                    "on-primary-container": "#001b5c",
+                    "surface-variant": "#eeeeee",
+                    "error": "#d32f2f",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "on-error-container": "#410002",
+                    "primary-fixed-dim": "#0041c8",
+                    "on-primary": "#ffffff",
+                    "error-dim": "#f44336",
+                    "tertiary-fixed": "#00a1ff",
+                    "surface-container": "#f1f1f1",
+                    "background": "#f9f9f9",
+                    "on-surface-variant": "#44474e",
+                    "on-tertiary-fixed": "#001e30",
+                    "surface-container-high": "#ebebeb",
+                    "on-secondary": "#ffffff",
+                    "tertiary-dim": "#00a1ff",
+                    "on-error": "#ffffff",
+                    "inverse-on-surface": "#f1f0f4",
+                    "error-container": "#f9dedc",
+                    "secondary-fixed": "#e2e2e2",
+                    "surface-container-low": "#f7f7f7",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-fixed-variant": "#001d60",
+                    "primary": "#0055FF",
+                    "on-primary-fixed": "#001b5c",
+                    "primary-dim": "#0041c8",
+                    "tertiary-container": "#c1e8ff",
+                    "secondary-fixed-dim": "#c6c6c6",
+                    "on-secondary-container": "#1d1d1d",
+                    "secondary": "#5d5e5f",
+                    "surface-container-lowest": "#ffffff",
+                    "inverse-surface": "#313033",
+                    "tertiary-fixed-dim": "#00a1ff",
+                    "on-surface": "#1a1c1c",
+                    "outline": "#74777f",
+                    "surface-dim": "#ded8e1",
+                    "on-background": "#1a1c1c",
+                    "secondary-dim": "#c6c6c6",
+                    "primary-fixed": "#dbe1ff",
+                    "secondary-container": "#e2e2e2",
+                    "on-tertiary-fixed-variant": "#001e30",
+                    "tertiary": "#00a1ff",
+                    "on-tertiary-container": "#001e30",
+                    "surface-container-highest": "#e3e3e3",
+                    "outline-variant": "#c4c6d0",
+                    "primary-container": "#dbe1ff",
+                    "on-secondary-fixed-variant": "#44474e",
+                    "surface-tint": "#0055FF"
+            },
+            "borderRadius": {
+                    "DEFAULT": "4px",
+                    "lg": "8px",
+                    "xl": "12px",
+                    "full": "9999px"
+            },
+            "spacing": {},
+            "fontFamily": {
+                    "headline": ["Space Grotesk"],
+                    "body": ["JetBrains Mono"],
+                    "label": ["JetBrains Mono"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #f9f9f9;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: default;
+        }
+        .crt-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.02) 50%), linear-gradient(90deg, rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0.01));
+            background-size: 100% 4px, 4px 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .glitch-effect:hover {
+            text-shadow: 2px 0 #00a1ff, -2px 0 #d32f2f;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f9f9f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2e2e2;
+        }
+        .cursor-terminal-blink::after {
+            content: '_';
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+    </style>
+</head>
+<body class="text-on-surface custom-scrollbar">
+<div class="crt-overlay"></div>
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-8 h-16 bg-[#f9f9f9] border-b-2 border-[#e2e2e2]">
+<div class="text-xl font-bold font-['Space_Grotesk'] tracking-tighter text-[#1a1c1c]">SUI_HUMAN</div>
+<nav class="hidden md:flex gap-8 items-center">
+<a class="font-['Space_Grotesk'] tracking-tight text-sm uppercase text-[#0041c8] border-b-2 border-[#0041c8] pb-1" href="#">VERIFY</a>
+<a class="font-['Space_Grotesk'] tracking-tight text-sm uppercase text-[#1a1c1c] opacity-70 hover:opacity-100 hover:text-[#0041c8] transition-colors" href="#">NETWORK</a>
+<a class="font-['Space_Grotesk'] tracking-tight text-sm uppercase text-[#1a1c1c] opacity-70 hover:opacity-100 hover:text-[#0041c8] transition-colors" href="#">DOCS</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[#1a1c1c] opacity-70 hover:text-[#0041c8] transition-colors">terminal</button>
+<button class="material-symbols-outlined text-[#1a1c1c] opacity-70 hover:text-[#0041c8] transition-colors">settings</button>
+<button class="bg-[#0055FF] text-white font-['JetBrains_Mono'] text-[10px] px-4 py-2 uppercase tracking-tighter hover:bg-[#0041c8] active:scale-95 transition-all rounded">CONNECT_WALLET</button>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 flex flex-col py-6 gap-2 bg-[#f3f3f3] border-r border-[#e2e2e2] hidden md:flex">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-10 h-10 bg-surface-container-highest flex items-center justify-center border border-[#0055FF]/20 rounded">
+<span class="material-symbols-outlined text-[#0055FF] text-xl">face</span>
+</div>
+<div>
+<div class="font-['Space_Grotesk'] font-black text-[#1a1c1c] text-sm tracking-widest uppercase">OPERATOR_01</div>
+<div class="font-['JetBrains_Mono'] text-[8px] text-[#0055FF]">STATUS: VERIFIED</div>
+</div>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="bg-[#e2e2e2] text-[#0041c8] border-l-4 border-[#0041c8] px-4 py-3 flex items-center gap-3 font-['Space_Grotesk'] text-xs font-medium tracking-widest" href="#">
+<span class="material-symbols-outlined text-sm">terminal</span> TERMINAL
+                </a>
+<a class="text-[#1a1c1c] opacity-60 px-4 py-3 flex items-center gap-3 hover:bg-[#e2e2e2] transition-all font-['Space_Grotesk'] text-xs font-medium tracking-widest" href="#">
+<span class="material-symbols-outlined text-sm">face</span> LIVENESS
+                </a>
+<a class="text-[#1a1c1c] opacity-60 px-4 py-3 flex items-center gap-3 hover:bg-[#e2e2e2] transition-all font-['Space_Grotesk'] text-xs font-medium tracking-widest" href="#">
+<span class="material-symbols-outlined text-sm">verified_user</span> SBT_VAULT
+                </a>
+<a class="text-[#1a1c1c] opacity-60 px-4 py-3 flex items-center gap-3 hover:bg-[#e2e2e2] transition-all font-['Space_Grotesk'] text-xs font-medium tracking-widest" href="#">
+<span class="material-symbols-outlined text-sm">account_tree</span> NODES
+                </a>
+<a class="text-[#1a1c1c] opacity-60 px-4 py-3 flex items-center gap-3 hover:bg-[#e2e2e2] transition-all font-['Space_Grotesk'] text-xs font-medium tracking-widest" href="#">
+<span class="material-symbols-outlined text-sm">account_balance</span> GOVERNANCE
+                </a>
+</nav>
+</div>
+<div class="px-6 mt-auto flex flex-col gap-4">
+<button class="w-full bg-[#f9f9f9] border border-[#0055FF]/30 text-[#0055FF] py-3 font-['JetBrains_Mono'] text-[10px] uppercase tracking-[0.2em] hover:bg-[#0055FF] hover:text-white transition-all rounded">INITIATE_SCAN</button>
+<div class="flex flex-col gap-2 pt-4 border-t border-[#e2e2e2]">
+<a class="text-[#1a1c1c] flex items-center gap-2 opacity-60 hover:opacity-100 font-['JetBrains_Mono'] text-[9px] uppercase" href="#">
+<span class="material-symbols-outlined text-sm">logout</span> LOGOUT
+                </a>
+<a class="text-[#1a1c1c] flex items-center gap-2 opacity-60 hover:opacity-100 font-['JetBrains_Mono'] text-[9px] uppercase" href="#">
+<span class="material-symbols-outlined text-sm">help_center</span> SUPPORT
+                </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 pt-16 min-h-screen bg-surface">
+<!-- Hero Section -->
+<section class="relative min-h-[700px] flex flex-col justify-center px-8 md:px-16 overflow-hidden border-b border-surface-variant">
+<div class="absolute top-10 right-10 opacity-10 pointer-events-none hidden lg:block font-mono">
+<pre class="text-[9px] text-[#1a1c1c] leading-tight">01101000 01110101 01101101 01100001 01101110
+IF (IDENTITY == "VERIFIED") {
+  ALLOW_ACCESS(SUI_NETWORK);
+  MINT_SOULBOUND_TOKEN();
+} ELSE {
+  INITIATE_TURING_TEST();
+}
+                </pre>
+</div>
+<div class="max-w-4xl z-10">
+<div class="inline-block bg-[#0055FF]/5 border border-[#0055FF]/20 px-3 py-1 mb-6 rounded-sm">
+<span class="text-[#0055FF] text-[10px] font-bold tracking-[0.3em] cursor-terminal-blink">IDENTITY_VERIFICATION: IN_PROGRESS</span>
+</div>
+<h1 class="font-headline text-5xl md:text-8xl font-black tracking-tighter leading-none mb-8 text-[#1a1c1c]">
+                    SOVEREIGN <br/>
+<span class="text-[#0055FF]">HUMANITY</span>
+</h1>
+<p class="font-body text-[#44474e] max-w-xl mb-10 text-sm leading-relaxed border-l-2 border-[#0055FF]/30 pl-6">
+                    The decentralized identity protocol for the SUI ecosystem. Secure your digital self with cryptographic proofs of personhood. No centralized gatekeepers. Only pure verification.
+                </p>
+<div class="flex flex-wrap gap-4">
+<button class="bg-[#0055FF] text-white px-10 py-4 font-headline font-black text-sm tracking-widest hover:bg-[#0041c8] transition-all shadow-[4px_4px_0px_#e2e2e2] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none rounded">
+                        LAUNCH_APP
+                    </button>
+<button class="border border-[#e2e2e2] bg-white text-[#1a1c1c] px-10 py-4 font-headline font-black text-sm tracking-widest hover:border-[#0055FF] hover:text-[#0055FF] transition-all rounded">
+                        DOCUMENTATION
+                    </button>
+</div>
+</div>
+<!-- Visual Data Background Element -->
+<div class="absolute bottom-0 right-0 w-2/3 h-full opacity-5 pointer-events-none overflow-hidden">
+<div class="w-full h-full grid grid-cols-12 gap-1 p-4">
+<div class="col-span-1 bg-[#0055FF] h-full"></div>
+<div class="col-span-2 bg-[#00a1ff] h-1/2 mt-auto"></div>
+<div class="col-span-1 bg-[#0055FF] h-3/4"></div>
+<div class="col-span-3 bg-[#00a1ff] h-1/4 mt-auto"></div>
+<div class="col-span-2 bg-[#0055FF] h-2/3 mt-20"></div>
+<div class="col-span-1 bg-[#00a1ff] h-full"></div>
+</div>
+</div>
+</section>
+<!-- Feature Bento Grid -->
+<section class="p-8 md:p-16 bg-white">
+<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+<!-- Header Column -->
+<div class="md:col-span-3 lg:col-span-2 mb-8">
+<h2 class="font-headline text-4xl font-bold tracking-tight mb-4 uppercase text-[#1a1c1c]">System_Capabilities</h2>
+<p class="text-[#44474e] text-sm max-w-md">Multi-layer verification engine designed for high-throughput networks.</p>
+</div>
+<!-- Card 1 -->
+<div class="bg-[#f7f7f7] p-8 border border-[#e2e2e2] hover:border-[#0055FF] transition-all group rounded">
+<span class="material-symbols-outlined text-[#0055FF] text-3xl mb-6 group-hover:scale-110 transition-transform">fingerprint</span>
+<h3 class="font-headline font-bold text-lg mb-2 uppercase text-[#1a1c1c]">Biometric Hash</h3>
+<p class="text-xs text-[#44474e] leading-relaxed">Encrypted physical identifiers stored as zero-knowledge proofs on-chain.</p>
+</div>
+<!-- Card 2 -->
+<div class="bg-[#f7f7f7] p-8 border border-[#e2e2e2] hover:border-[#00a1ff] transition-all group rounded">
+<span class="material-symbols-outlined text-[#00a1ff] text-3xl mb-6 group-hover:scale-110 transition-transform">security</span>
+<h3 class="font-headline font-bold text-lg mb-2 uppercase text-[#1a1c1c]">Liveness Check</h3>
+<p class="text-xs text-[#44474e] leading-relaxed">Real-time anti-spoofing protocols to defeat AI-driven identity fraud.</p>
+</div>
+<!-- Card 3 -->
+<div class="md:col-span-2 bg-[#f1f1f1] border border-[#e2e2e2] p-8 relative overflow-hidden group rounded">
+<div class="relative z-10">
+<span class="material-symbols-outlined text-[#0055FF] text-3xl mb-6">hub</span>
+<h3 class="font-headline font-bold text-lg mb-2 uppercase text-[#1a1c1c]">Neural Network Validation</h3>
+<p class="text-xs text-[#44474e] max-w-sm mb-6">Cross-verify identities across multiple social graph layers without compromising privacy.</p>
+<div class="flex gap-2">
+<span class="text-[8px] bg-white border border-[#e2e2e2] px-2 py-1 text-[#0055FF] font-bold">NODES: ACTIVE</span>
+<span class="text-[8px] bg-white border border-[#e2e2e2] px-2 py-1 text-[#0055FF] font-bold">SYNC: 100%</span>
+</div>
+</div>
+<div class="absolute -right-20 -bottom-20 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[200px] text-[#0055FF]">radar</span>
+</div>
+</div>
+<!-- Card 4 (Visual) -->
+<div class="bg-[#e3e3e3] border border-[#e2e2e2] p-8 flex flex-col justify-between rounded">
+<div>
+<div class="text-[#d32f2f] font-bold text-[10px] tracking-widest mb-4">CRITICAL_INFRASTRUCTURE</div>
+<h3 class="font-headline font-bold text-lg mb-2 uppercase text-[#1a1c1c]">SBT Minting</h3>
+</div>
+<div class="h-24 bg-white border border-[#e2e2e2] relative overflow-hidden rounded-sm">
+<div class="absolute inset-0 bg-gradient-to-t from-[#0055FF]/10 to-transparent"></div>
+<div class="flex items-end justify-around h-full px-2 pb-2">
+<div class="w-1 bg-[#0055FF] h-8"></div>
+<div class="w-1 bg-[#0055FF] h-12"></div>
+<div class="w-1 bg-[#0055FF] h-6"></div>
+<div class="w-1 bg-[#0055FF] h-10"></div>
+<div class="w-1 bg-[#0055FF] h-14"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Detailed Section: Human Pulse -->
+<section class="py-24 px-8 md:px-16 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+<div>
+<label class="text-[#0055FF] text-[10px] tracking-[0.4em] block mb-4 font-bold">ENGINE_OVERVIEW</label>
+<h2 class="font-headline text-4xl md:text-6xl font-black mb-8 leading-tight text-[#1a1c1c]">THE HUMAN <br/> PULSE ENGINE</h2>
+<div class="space-y-6">
+<div class="flex gap-6 p-6 bg-[#f7f7f7] border border-[#e2e2e2] border-l-4 border-l-[#00a1ff] rounded-r">
+<div class="text-[#00a1ff] font-headline font-bold text-2xl">01</div>
+<div>
+<h4 class="font-bold text-sm uppercase mb-2 text-[#1a1c1c]">Asynchronous Verification</h4>
+<p class="text-xs text-[#44474e]">Validation pulses occur randomly to prevent bot scheduling and predictive masking.</p>
+</div>
+</div>
+<div class="flex gap-6 p-6 bg-[#f7f7f7] border border-[#e2e2e2] border-l-4 border-l-[#0055FF] rounded-r">
+<div class="text-[#0055FF] font-headline font-bold text-2xl">02</div>
+<div>
+<h4 class="font-bold text-sm uppercase mb-2 text-[#1a1c1c]">Entropy Injection</h4>
+<p class="text-xs text-[#44474e]">Each verification task is injected with high-entropy variables unique to the SUI blockchain state.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-[#ebebeb] p-4 relative aspect-square rounded">
+<div class="absolute inset-0 border border-[#0055FF]/10 m-4 rounded"></div>
+<div class="absolute inset-0 border border-[#0055FF]/5 m-8 rounded"></div>
+<div class="w-full h-full bg-white border border-[#e2e2e2] flex items-center justify-center relative overflow-hidden rounded">
+<!-- Image placeholder with data-alt -->
+<img alt="technical grid" class="w-full h-full object-cover opacity-60 mix-blend-multiply" data-alt="Close-up of a digital circuit board with neon green glowing lines and high-tech abstract patterns in a dark environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDI3gCfS_qKxy50oRy7wa38XcOV5S01NwA7tBMrvjIgKJQ2xAReKMEkAMEZlueWvcn9A7NovPTg53_HSXbnfZJGztH2Q8-yGo7y-feRj_l4fTOvITK1oeNLOBuQ4gneb9rjx3BQpnk0UIdKQzuQ_CPHIcNWGItBKKp3303TYt3XvwLWwitN0JOBqJJKBlgY1GU-VhVecMdUzquRjGFBLG_TqOZlYjuqSU2xF-qu6ORvc-lbu53-Uqx67welx8lDLuWse8BUQSSxDG4"/>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="text-center">
+<span class="material-symbols-outlined text-[#0055FF] text-6xl animate-pulse">monitoring</span>
+<div class="text-[#0055FF] font-bold text-[10px] mt-4 tracking-[0.5em]">SYSTEM_READY</div>
+</div>
+</div>
+</div>
+<!-- Technical Metadata -->
+<div class="absolute bottom-6 left-6 text-[8px] text-[#44474e] font-mono font-bold">
+                    COORD: 40.7128° N, 74.0060° W <br/>
+                    LATENCY: 12ms <br/>
+                    BUFFER: [||||||||||] 100%
+                </div>
+</div>
+</section>
+<!-- Stats/Network Section -->
+<section class="bg-white p-8 md:p-16 border-y border-[#e2e2e2]">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+<div class="border-l border-[#0055FF]/20 pl-4">
+<div class="text-3xl font-headline font-black text-[#0055FF]">1.2M+</div>
+<div class="text-[9px] uppercase tracking-widest text-[#44474e] font-bold">Verified_Entities</div>
+</div>
+<div class="border-l border-[#00a1ff]/20 pl-4">
+<div class="text-3xl font-headline font-black text-[#00a1ff]">0.003s</div>
+<div class="text-[9px] uppercase tracking-widest text-[#44474e] font-bold">Proof_Generation</div>
+</div>
+<div class="border-l border-[#0055FF]/20 pl-4">
+<div class="text-3xl font-headline font-black text-[#0055FF]">99.9%</div>
+<div class="text-[9px] uppercase tracking-widest text-[#44474e] font-bold">Bot_Detection_Rate</div>
+</div>
+<div class="border-l border-[#00a1ff]/20 pl-4">
+<div class="text-3xl font-headline font-black text-[#00a1ff]">0.01</div>
+<div class="text-[9px] uppercase tracking-widest text-[#44474e] font-bold">SUI_Gas_Per_Mint</div>
+</div>
+</div>
+</section>
+<!-- Bottom CTA -->
+<section class="py-32 px-8 text-center bg-white">
+<h2 class="font-headline text-4xl md:text-7xl font-black mb-8 uppercase glitch-effect tracking-tighter text-[#1a1c1c]">Ready_to_Verify?</h2>
+<p class="text-[#44474e] max-w-xl mx-auto mb-12 text-sm">Join the largest network of verified humans on SUI. Start your journey into the sovereign web today.</p>
+<button class="bg-[#0055FF] text-white px-16 py-6 font-headline font-black text-lg tracking-[0.2em] hover:scale-105 transition-transform active:scale-95 shadow-[8px_8px_0px_#e2e2e2] rounded">
+                INITIALIZE_SESSION
+            </button>
+</section>
+<!-- Minimal Footer -->
+<footer class="bg-[#f1f1f1] px-8 py-12 flex flex-col md:flex-row justify-between items-center gap-8 border-t border-[#e2e2e2]">
+<div class="flex flex-col items-center md:items-start">
+<div class="text-lg font-headline font-black text-[#1a1c1c] mb-2">SUI_HUMAN</div>
+<div class="text-[8px] text-[#44474e] uppercase tracking-widest font-bold">© 2024 SOVEREIGN_IDENTITY_FOUNDATION. NO RIGHTS RESERVED.</div>
+</div>
+<div class="flex gap-8">
+<a class="text-[10px] text-[#44474e] hover:text-[#0055FF] transition-colors uppercase font-bold" href="#">Twitter/X</a>
+<a class="text-[10px] text-[#44474e] hover:text-[#0055FF] transition-colors uppercase font-bold" href="#">GitHub</a>
+<a class="text-[10px] text-[#44474e] hover:text-[#0055FF] transition-colors uppercase font-bold" href="#">Discord</a>
+</div>
+<div class="text-[10px] text-[#0055FF]/60 font-mono font-bold">
+                BUILD: v4.2.0-STABLE
+            </div>
+</footer>
+</main>
+<!-- Contextual System Status Bar (Mobile Bottom) -->
+<div class="fixed bottom-0 left-0 w-full md:hidden h-14 bg-white border-t border-[#e2e2e2] flex items-center justify-around z-50">
+<a class="material-symbols-outlined text-[#0055FF]" href="#">terminal</a>
+<a class="material-symbols-outlined text-[#44474e]" href="#">face</a>
+<button class="bg-[#0055FF] text-white px-4 py-1 text-[10px] font-bold rounded">VERIFY</button>
+<a class="material-symbols-outlined text-[#44474e]" href="#">account_tree</a>
+<a class="material-symbols-outlined text-[#44474e]" href="#">settings</a>
+</div>
+</body></html>

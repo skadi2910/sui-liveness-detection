@@ -117,6 +117,12 @@ class VerificationResult(BaseModel):
     deepfake_enabled: bool = False
     attack_analysis: dict[str, Any] | None = None
     proof_id: str | None = None
+    transaction_digest: str | None = None
+    walrus_blob_id: str | None = None
+    walrus_blob_object_id: str | None = None
+    seal_identity: str | None = None
+    evidence_schema_version: int | None = None
+    model_hash: str | None = None
     blob_id: str | None = None
     expires_at: datetime | None = None
     failure_reason: str | None = None

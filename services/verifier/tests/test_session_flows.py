@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 import pytest
 
+from app.adapters.evidence_store import StoredBlobRef
+from app.adapters.evidence_store import InMemoryEvidenceStore
 from app.sessions.models import ChallengeType
 
 
@@ -85,6 +89,165 @@ def _send_frame_and_receive_progress(websocket, event: dict[str, object]) -> tup
 def _force_sequence(client: TestClient, sequence: list[ChallengeType]) -> None:
     service = client.app.state.session_service
     service._select_challenge_sequence = lambda _session_id: sequence  # type: ignore[attr-defined]
+
+
+class _WalrusBlobRef(str):
+    def __new__(
+        cls,
+        blob_id: str,
+        *,
+        blob_object_id: str,
+        created_at: str,
+        provider_metadata: dict[str, object] | None = None,
+    ) -> "_WalrusBlobRef":
+        instance = str.__new__(cls, blob_id)
+        instance.blob_id = blob_id
+        instance.blob_object_id = blob_object_id
+        instance.created_at = created_at
+        instance.provider_metadata = provider_metadata or {}
+        return instance
+
+
+class _SealEnvelope(bytes):
+    def __new__(
+        cls,
+        encrypted_bytes: bytes,
+        *,
+        seal_identity: str,
+        evidence_schema_version: int,
+        policy_version: str,
+    ) -> "_SealEnvelope":
+        instance = bytes.__new__(cls, encrypted_bytes)
+        instance.encrypted_bytes = encrypted_bytes
+        instance.seal_identity = seal_identity
+        instance.evidence_schema_version = evidence_schema_version
+        instance.policy_version = policy_version
+        return instance
+
+
+class _TrackingEvidenceStore(InMemoryEvidenceStore):
+    def __init__(self) -> None:
+        super().__init__()
+        self.put_results: list[_WalrusBlobRef] = []
+        self.deleted_blob_ids: list[str] = []
+
+    def put_encrypted_blob(self, blob_bytes: bytes, metadata: dict[str, object]) -> _WalrusBlobRef:
+        blob_ref = super().put_encrypted_blob(bytes(blob_bytes), metadata)
+        assert isinstance(blob_ref, StoredBlobRef)
+        blob_ref = _WalrusBlobRef(
+            blob_ref.blob_id,
+            blob_object_id=blob_ref.blob_object_id,
+            created_at=blob_ref.created_at,
+            provider_metadata=blob_ref.metadata,
+        )
+        self.put_results.append(blob_ref)
+        return blob_ref
+
+    def delete_blob(self, blob_id: str) -> bool:
+        self.deleted_blob_ids.append(blob_id)
+        return super().delete_blob(blob_id)
+
+
+class _TrackingEvidenceEncryptor:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def encrypt_for_wallet(self, wallet_address: str, payload: bytes | str | dict[str, object]) -> _SealEnvelope:
+        self.calls.append(
+            {
+                "wallet_address": wallet_address,
+                "payload": payload,
+            }
+        )
+        return _SealEnvelope(
+            b'{"ciphertext":"phase1"}',
+            seal_identity="seal_phase1_identity",
+            evidence_schema_version=1,
+            policy_version="mock-seal-v1",
+        )
+
+    def decrypt_for_dispute(self, policy_input) -> bytes:  # pragma: no cover - not used in these tests
+        return b"{}"
+
+
+class _Phase1ProofMinter:
+    def __init__(self, *, success: bool, reason: str | None = None) -> None:
+        self.success = success
+        self.reason = reason
+        self.mint_calls: list[object] = []
+
+    def mint_proof(self, session_result) -> SimpleNamespace:
+        self.mint_calls.append(session_result)
+        walrus_blob_id = getattr(session_result, "walrus_blob_id", None) or getattr(
+            session_result,
+            "blob_id",
+            None,
+        )
+        walrus_blob_object_id = getattr(session_result, "walrus_blob_object_id", None)
+        return SimpleNamespace(
+            success=self.success,
+            proof_id="0xproof_phase1",
+            transaction_digest="0xtxn_phase1",
+            expires_at="2026-07-17T00:00:00+00:00",
+            walrus_blob_id=walrus_blob_id,
+            walrus_blob_object_id=walrus_blob_object_id,
+            seal_identity="seal_phase1_identity",
+            evidence_schema_version=1,
+            model_hash="model_hash_phase1",
+            metadata={
+                "network": "mock-sui-testnet",
+                "model_hash": "model_hash_phase1",
+            },
+            reason=self.reason,
+        )
+
+    def renew_proof(self, wallet_address: str, previous_proof_id: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            success=True,
+            proof_id=previous_proof_id,
+            expires_at="2026-07-17T00:00:00+00:00",
+            transaction_digest="0xtxn_phase1_renew",
+            metadata={"network": "mock-sui-testnet"},
+        )
+
+
+def _mark_event_as_full_mode_success(event: dict[str, object]) -> dict[str, object]:
+    metadata = event.setdefault("metadata", {})
+    assert isinstance(metadata, dict)
+    metadata.update(
+        {
+            "force_human_face_score": 0.92,
+            "force_deepfake_score": 0.08,
+        }
+    )
+    return event
+
+
+def _run_full_mode_terminal_event(
+    client: TestClient,
+    *,
+    wallet_address: str,
+    challenge_sequence: list[ChallengeType],
+) -> tuple[dict[str, object], dict[str, object]]:
+    _force_sequence(client, challenge_sequence)
+    create_response = client.post("/api/sessions", json=_session_payload(wallet_address))
+    session = create_response.json()
+
+    with client.websocket_connect(session["ws_url"]) as websocket:
+        assert websocket.receive_json()["type"] == "session_ready"
+
+        for challenge in session["challenge_sequence"]:
+            for event in _challenge_frames(challenge, spoof_score=0.02):
+                _send_frame_and_receive_progress(
+                    websocket,
+                    _mark_event_as_full_mode_success(event),
+                )
+
+        websocket.send_json({"type": "finalize", "mode": "full"})
+        assert websocket.receive_json()["type"] == "processing"
+        terminal_event = websocket.receive_json()
+
+    return session, terminal_event
 
 
 def test_create_session_returns_expected_contract(client: TestClient) -> None:
@@ -657,6 +820,65 @@ def test_full_mode_reports_proof_mint_failure_consistently(client: TestClient) -
             terminal_event["payload"]["attack_analysis"]["suspected_attack_family"]
             == "none"
         )
+
+
+def test_full_mode_terminal_result_exposes_sui_walrus_and_seal_fields(client: TestClient) -> None:
+    service = client.app.state.session_service
+    tracking_store = _TrackingEvidenceStore()
+    service.evidence_store = tracking_store
+    service.evidence_encryptor = _TrackingEvidenceEncryptor()
+    service.proof_minter = _Phase1ProofMinter(success=True)
+
+    session, terminal_event = _run_full_mode_terminal_event(
+        client,
+        wallet_address="0xphase1-shape-wallet",
+        challenge_sequence=[ChallengeType.SMILE],
+    )
+
+    assert terminal_event["type"] == "verified"
+    payload = terminal_event["payload"]
+
+    assert payload["proof_id"] == "0xproof_phase1"
+    assert payload["transaction_digest"] == "0xtxn_phase1"
+    assert payload["walrus_blob_id"] == tracking_store.put_results[0].blob_id
+    assert payload["walrus_blob_object_id"] == tracking_store.put_results[0].blob_object_id
+    assert payload["seal_identity"] == "seal_phase1_identity"
+    assert payload["evidence_schema_version"] == 1
+    assert payload["expires_at"].startswith("2026-07-17T00:00:00")
+
+    session_response = client.get(f"/api/sessions/{session['session_id']}")
+    assert session_response.status_code == 200
+    persisted_result = session_response.json()["result"]
+    assert persisted_result["proof_id"] == payload["proof_id"]
+    assert persisted_result["transaction_digest"] == payload["transaction_digest"]
+    assert persisted_result["walrus_blob_id"] == payload["walrus_blob_id"]
+    assert persisted_result["walrus_blob_object_id"] == payload["walrus_blob_object_id"]
+    assert persisted_result["seal_identity"] == payload["seal_identity"]
+    assert persisted_result["evidence_schema_version"] == payload["evidence_schema_version"]
+
+
+def test_full_mode_deletes_blob_when_storage_succeeds_but_mint_fails(client: TestClient) -> None:
+    service = client.app.state.session_service
+    tracking_store = _TrackingEvidenceStore()
+    service.evidence_store = tracking_store
+    service.evidence_encryptor = _TrackingEvidenceEncryptor()
+    service.proof_minter = _Phase1ProofMinter(success=False, reason="mock_mint_failure")
+
+    _, terminal_event = _run_full_mode_terminal_event(
+        client,
+        wallet_address="0xphase1-cleanup-wallet",
+        challenge_sequence=[ChallengeType.SMILE],
+    )
+
+    assert terminal_event["type"] == "failed"
+    assert terminal_event["payload"]["failure_reason"] == "mock_mint_failure"
+    assert tracking_store.deleted_blob_ids == [tracking_store.put_results[0].blob_id]
+    assert tracking_store.get_blob(tracking_store.put_results[0].blob_id) is None
+    assert terminal_event["payload"]["proof_id"] is None
+    if "walrus_blob_id" in terminal_event["payload"]:
+        assert terminal_event["payload"]["walrus_blob_id"] is None
+    if "walrus_blob_object_id" in terminal_event["payload"]:
+        assert terminal_event["payload"]["walrus_blob_object_id"] is None
 
 
 def test_order_enforcement_prevents_later_step_from_counting_early(client: TestClient) -> None:
