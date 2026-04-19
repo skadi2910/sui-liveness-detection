@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SUI_HUMAN | MISSION_PROFILE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&amp;family=Space+Grotesk:wght@300;400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#ffffff",
+                        "surface": "#f9f9f9",
+                        "inverse-primary": "#0055ff",
+                        "on-primary-container": "#001b5e",
+                        "surface-variant": "#e2e2e2",
+                        "error": "#d32f2f",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "on-error-container": "#410002",
+                        "primary-fixed-dim": "#0055ff",
+                        "on-primary": "#ffffff",
+                        "error-dim": "#f2b8b5",
+                        "tertiary-fixed": "#00cbfe",
+                        "surface-container": "#f3f3f3",
+                        "background": "#ffffff",
+                        "on-surface-variant": "#49454f",
+                        "on-tertiary-fixed": "#002733",
+                        "surface-container-high": "#e8e8e8",
+                        "on-secondary": "#ffffff",
+                        "tertiary-dim": "#00bcec",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#f4f0ef",
+                        "error-container": "#f9dedc",
+                        "secondary-fixed": "#e5e2e1",
+                        "surface-container-low": "#f9f9f9",
+                        "on-tertiary": "#00485c",
+                        "on-primary-fixed-variant": "#0041c8",
+                        "primary": "#0055ff",
+                        "on-primary-fixed": "#001b5e",
+                        "primary-dim": "#0041c8",
+                        "tertiary-container": "#00cbfe",
+                        "secondary-fixed-dim": "#d7d4d3",
+                        "on-secondary-container": "#1a1c1c",
+                        "secondary": "#474646",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-surface": "#313030",
+                        "tertiary-fixed-dim": "#00bcec",
+                        "on-surface": "#1a1c1c",
+                        "outline": "#79747e",
+                        "surface-dim": "#ded8d7",
+                        "on-background": "#1a1c1c",
+                        "secondary-dim": "#d7d4d3",
+                        "primary-fixed": "#0055ff",
+                        "secondary-container": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#00485b",
+                        "tertiary": "#0055ff",
+                        "on-tertiary-container": "#003e50",
+                        "surface-container-highest": "#e2e2e2",
+                        "outline-variant": "#c4c7c5",
+                        "primary-container": "#e0eaff",
+                        "on-secondary-fixed-variant": "#49454f",
+                        "surface-tint": "#0055ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "4px",
+                        "lg": "8px",
+                        "xl": "12px",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "body": ["JetBrains Mono", "monospace"],
+                        "label": ["JetBrains Mono", "monospace"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .scale-98-on-click:active {
+            transform: scale(0.98);
+        }
+        ::selection {
+            background: #0055ff;
+            color: #ffffff;
+        }
+        .text-gradient-primary {
+            background: linear-gradient(135deg, #0055ff 0%, #0041c8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body overflow-x-hidden">
+<!-- TopNavBar -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-8 h-16 bg-[#f9f9f9] border-b-2 border-[#e2e2e2]">
+<div class="text-xl font-bold font-headline tracking-tighter text-[#1a1c1c]">SUI_HUMAN</div>
+<div class="hidden md:flex items-center space-x-8">
+<a class="font-headline font-medium tracking-tight text-sm uppercase text-[#1a1c1c] opacity-70 hover:opacity-100 hover:text-[#0041c8] transition-colors" href="#">VERIFY</a>
+<a class="font-headline font-medium tracking-tight text-sm uppercase text-[#1a1c1c] opacity-70 hover:opacity-100 hover:text-[#0041c8] transition-colors" href="#">NETWORK</a>
+<a class="font-headline font-medium tracking-tight text-sm uppercase text-[#0041c8] border-b-2 border-[#0041c8] pb-1" href="#">DOCS</a>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#1a1c1c] cursor-pointer hover:text-[#0041c8] transition-colors">terminal</span>
+<span class="material-symbols-outlined text-[#1a1c1c] cursor-pointer hover:text-[#0041c8] transition-colors">settings</span>
+<button class="bg-[#0055ff] text-white px-6 py-2 font-headline uppercase text-xs font-bold tracking-widest scale-98-on-click">CONNECT_WALLET</button>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#f3f3f3] border-r border-[#e2e2e2] flex flex-col justify-between py-8 hidden lg:flex z-40">
+<div class="flex flex-col">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 bg-[#e2e2e2] border-2 border-[#0055ff] rounded-sm overflow-hidden">
+<img alt="OPERATOR_01" class="w-full h-full object-cover grayscale" data-alt="Cyberpunk stylized glitchy portrait of a digital operator wearing tactical visor with green HUD reflections" src="https://lh3.googleusercontent.com/aida-public/AB6AXuANdiL40Tb-tIC-w_ndbBtHHeEDBnENZ4HoQTZB5cSSW-i7YzcESCeoxpGg1IoKpD2pknuJX1m5x9W_WciYMxoFhuktZamOlcRyf0NPJdrhECIR2NSuwVESpRW1GliMLmrg3KkrXsNOo7RJEvkxPJzJhD6DNtY6yLEh7MnSK3HvR3MJPGo8zXrKLyj3c8XjTvqRclw1JCUIkYRSE7kkrhFId6AqPuxlpjwncH_kNh3_8VjdJApjKtCBsX68HJ-cAFpfYj185odol7g"/>
+</div>
+<div>
+<div class="font-headline font-black text-[#1a1c1c] text-sm">OPERATOR_01</div>
+<div class="font-body text-[10px] text-[#0055ff] font-bold">IDENTITY_VERIFIED</div>
+</div>
+</div>
+</div>
+<nav class="flex flex-col">
+<a class="text-[#1a1c1c] px-6 py-3 flex items-center gap-3 opacity-60 font-headline text-xs font-medium tracking-widest hover:bg-[#e2e2e2] transition-all" href="#">
+<span class="material-symbols-outlined text-sm">terminal</span> TERMINAL
+                </a>
+<a class="bg-[#e2e2e2] text-[#0041c8] border-l-4 border-[#0041c8] px-6 py-3 flex items-center gap-3 font-headline text-xs font-medium tracking-widest" href="#">
+<span class="material-symbols-outlined text-sm">face</span> LIVENESS
+                </a>
+<a class="text-[#1a1c1c] px-6 py-3 flex items-center gap-3 opacity-60 font-headline text-xs font-medium tracking-widest hover:bg-[#e2e2e2] transition-all" href="#">
+<span class="material-symbols-outlined text-sm">verified_user</span> SBT_VAULT
+                </a>
+<a class="text-[#1a1c1c] px-6 py-3 flex items-center gap-3 opacity-60 font-headline text-xs font-medium tracking-widest hover:bg-[#e2e2e2] transition-all" href="#">
+<span class="material-symbols-outlined text-sm">account_tree</span> NODES
+                </a>
+<a class="text-[#1a1c1c] px-6 py-3 flex items-center gap-3 opacity-60 font-headline text-xs font-medium tracking-widest hover:bg-[#e2e2e2] transition-all" href="#">
+<span class="material-symbols-outlined text-sm">account_balance</span> GOVERNANCE
+                </a>
+</nav>
+</div>
+<div class="px-6 flex flex-col gap-4">
+<button class="w-full bg-transparent border-2 border-[#0055ff] text-[#0055ff] py-2 text-[10px] font-black uppercase tracking-widest hover:bg-[#0055ff]/5 transition-all scale-98-on-click">INITIATE_SCAN</button>
+<div class="flex flex-col gap-2 pt-4 border-t border-[#e2e2e2]">
+<a class="text-[#1a1c1c] opacity-60 flex items-center gap-2 text-[10px] font-bold uppercase hover:opacity-100 hover:text-error transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">logout</span> LOGOUT
+                </a>
+<a class="text-[#1a1c1c] opacity-60 flex items-center gap-2 text-[10px] font-bold uppercase hover:opacity-100 hover:text-[#0055ff] transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">help_center</span> SUPPORT
+                </a>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="pt-24 pb-20 px-6 lg:pl-72 lg:pr-12 max-w-[1600px] mx-auto min-h-screen">
+<!-- Hero Header -->
+<header class="mb-20">
+<div class="inline-block px-3 py-1 bg-[#0055ff] text-white text-[10px] font-black mb-6 tracking-widest rounded-sm">PROTOCOL_ORIGIN</div>
+<h1 class="font-headline text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tighter leading-none mb-8 text-[#1a1c1c]">
+                SECURE THE <span class="text-[#0055ff] italic">HUMAN</span> LAYER.
+            </h1>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-end">
+<p class="font-body text-[#1a1c1c] opacity-80 max-w-xl text-lg leading-relaxed">
+                    SUI_HUMAN is the definitive identity verification primitive for the Web3 ecosystem. We utilize zero-knowledge proofs and advanced biometric hardware signals to ensure every transaction originates from a verified biological entity—without compromising digital sovereignty.
+                </p>
+<div class="flex flex-col items-end">
+<div class="text-[#0055ff] text-[10px] font-black uppercase mb-3 tracking-widest">SYSTEM_INTEGRITY_INDEX: 99.98%</div>
+<div class="w-full h-2 bg-[#e2e2e2] max-w-xs relative rounded-full overflow-hidden">
+<div class="absolute top-0 left-0 h-full bg-[#0055ff] w-[99.9%]"></div>
+</div>
+</div>
+</div>
+</header>
+<!-- Mission Grid -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-px bg-[#e2e2e2] mb-32 border-2 border-[#e2e2e2]">
+<div class="md:col-span-8 bg-white p-8 lg:p-12">
+<h2 class="font-headline text-3xl font-black mb-8 flex items-center gap-3 text-[#1a1c1c]">
+<span class="material-symbols-outlined text-[#0055ff] text-4xl" data-weight="fill">verified_user</span>
+                    OUR_MISSION
+                </h2>
+<div class="space-y-6 font-body text-[#1a1c1c] opacity-80">
+<p>In an era of generative AI and bot-saturated networks, the most valuable asset in the digital world is the proof of being human. Our mission is to build a high-integrity, decentralized firewall between humans and machines.</p>
+<p>We believe that privacy is a human right, and liveness is the ultimate credential. By leveraging the SUI network's high throughput, we enable real-time human verification for every dApp, DAO, and protocol on the chain.</p>
+</div>
+</div>
+<div class="md:col-span-4 bg-[#f9f9f9] p-8 flex flex-col justify-between border-l-2 border-[#e2e2e2]">
+<div>
+<div class="text-[#0055ff] text-[10px] font-black uppercase mb-8 tracking-widest">NODE_LOCATIONS</div>
+<div class="aspect-square bg-white border-2 border-[#e2e2e2] flex items-center justify-center overflow-hidden relative">
+<img alt="Global Node Distribution" class="opacity-80 contrast-125" data-alt="Abstract digital world map rendered in glowing green lines and dots on a deep black background representing node network" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeFksYXLctM03PeYFUH8PGcx2CbU1oh9RwwswErDCzbqHHL1P268G1Q8OY5b_tedThy7wnqCWjYlcbYwE7hr1PbungfvdTLViUsfnfhBbBuf_-PAxCaUhEbHdj04T6OvHkKrcdZRGq3SDcRs_Krzi7yiRe2pjkVIA7TDjzK_24ieXXGirRN4QIOXedf9vak36iTMPZpyDqPDQ1qzJnEwdzYewQXQzk_3GtjGTpf_cbJeCO9TqvpoPF-NgEtkq2uN1yY07bNODqw8I"/>
+<div class="absolute inset-0 bg-gradient-to-t from-white to-transparent opacity-40"></div>
+</div>
+</div>
+<div class="mt-8">
+<div class="flex justify-between items-end">
+<div class="text-3xl font-headline font-black text-[#1a1c1c]">142</div>
+<div class="text-[10px] text-[#0055ff] font-bold tracking-widest uppercase">ACTIVE_ORACLES</div>
+</div>
+</div>
+</div>
+</section>
+<!-- CORE_VALUES -->
+<section class="mb-32">
+<div class="flex items-center gap-6 mb-12">
+<div class="h-[2px] bg-[#e2e2e2] grow"></div>
+<h2 class="font-headline text-2xl font-black tracking-[0.2em] uppercase text-[#1a1c1c]">CORE_VALUES</h2>
+<div class="h-[2px] bg-[#e2e2e2] grow"></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Value 1 -->
+<div class="bg-white p-8 border-t-8 border-[#0055ff] shadow-sm hover:shadow-md transition-shadow">
+<div class="text-[#0055ff] mb-8 flex justify-between items-start">
+<span class="material-symbols-outlined text-5xl">security</span>
+<span class="font-body text-[10px] font-black opacity-20">001</span>
+</div>
+<h3 class="font-headline text-xl font-black mb-4 uppercase tracking-tight text-[#1a1c1c]">Digital_Sovereignty</h3>
+<p class="font-body text-sm text-[#1a1c1c] opacity-70 leading-relaxed">Identity is not owned by corporations or states. Your biometric data never leaves your local hardware; only ZK-proofs traverse the network.</p>
+</div>
+<!-- Value 2 -->
+<div class="bg-white p-8 border-t-8 border-[#0055ff] opacity-80 shadow-sm hover:shadow-md transition-shadow">
+<div class="text-[#0055ff] mb-8 flex justify-between items-start">
+<span class="material-symbols-outlined text-5xl">code</span>
+<span class="font-body text-[10px] font-black opacity-20">002</span>
+</div>
+<h3 class="font-headline text-xl font-black mb-4 uppercase tracking-tight text-[#1a1c1c]">Radical_Transparency</h3>
+<p class="font-body text-sm text-[#1a1c1c] opacity-70 leading-relaxed">Our protocol logic is open-source. Trust is verified through mathematics and code, not marketing or opaque promises.</p>
+</div>
+<!-- Value 3 -->
+<div class="bg-white p-8 border-t-8 border-[#0055ff] opacity-60 shadow-sm hover:shadow-md transition-shadow">
+<div class="text-[#0055ff] mb-8 flex justify-between items-start">
+<span class="material-symbols-outlined text-5xl">diversity_3</span>
+<span class="font-body text-[10px] font-black opacity-20">003</span>
+</div>
+<h3 class="font-headline text-xl font-black mb-4 uppercase tracking-tight text-[#1a1c1c]">Universal_Access</h3>
+<p class="font-body text-sm text-[#1a1c1c] opacity-70 leading-relaxed">Proof-of-Humanity must be accessible to all biological humans regardless of geography or economic status.</p>
+</div>
+</div>
+</section>
+<!-- SYSTEM_ARCHITECTS -->
+<section class="mb-32">
+<div class="mb-12">
+<h2 class="font-headline text-4xl font-black uppercase tracking-tighter mb-2 text-[#1a1c1c]">SYSTEM_ARCHITECTS</h2>
+<div class="text-[10px] text-[#0055ff] font-black tracking-widest uppercase">CLEARANCE_LEVEL: OMEGA</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8">
+<!-- Member 1 -->
+<div class="bg-white border-2 border-[#1a1c1c] p-6 flex flex-col hover:bg-[#f3f3f3] transition-colors group">
+<div class="aspect-[4/5] bg-[#e2e2e2] mb-6 overflow-hidden relative border border-[#1a1c1c]">
+<img alt="ARCHITECT_01" class="w-full h-full object-cover grayscale brightness-110 contrast-125" data-alt="Close up cinematic portrait of a woman in high-tech black tactical gear, sharp jawline, intense eyes, neon green accent lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLkBclXl4G1qix1glbY7SgwDNRG_v7S36hFmwrIiOOKyMYufXBxTx-ei5hzwIyMLWr3e3bWi2RFvwmewpsen7sj8oZguSeaGQOZo2IxmzqhpV04GpaUEjTBFifPmM6WLiVWiW5HpRR4H8PAYL6zu-Qg02BDfEWHYb2RZK5IenlE_-h9jpvm3NKAmyWDcJIU40o68Ae7dMZUJ8h52Lt6aRSr6srge9QD9q6JFk_5FnnbfAQjN4EpkRC18QPTLw86WP9LujqPZHJrR8"/>
+<div class="absolute bottom-4 left-4 bg-[#1a1c1c] text-white px-2 py-1 font-headline font-black uppercase text-sm leading-none">Vera Silvas</div>
+</div>
+<div class="flex justify-between items-center text-[10px] font-black text-[#0055ff] mb-2 tracking-widest">
+<span>LEAD_ENGINEER</span>
+<span class="text-[#1a1c1c] opacity-30 font-body">#7721</span>
+</div>
+<div class="h-1 bg-[#1a1c1c] mb-4 group-hover:bg-[#0055ff] transition-colors"></div>
+<p class="text-xs text-[#1a1c1c] font-body font-medium leading-relaxed">Cryptography specialist. Former lead of Zero-Knowledge R&amp;D at the Sui Foundation.</p>
+</div>
+<!-- Member 2 -->
+<div class="bg-white border-2 border-[#1a1c1c] p-6 flex flex-col hover:bg-[#f3f3f3] transition-colors group">
+<div class="aspect-[4/5] bg-[#e2e2e2] mb-6 overflow-hidden relative border border-[#1a1c1c]">
+<img alt="ARCHITECT_02" class="w-full h-full object-cover grayscale brightness-110 contrast-125" data-alt="Portrait of a man with short cropped hair wearing a high-collar technical jacket, illuminated by blue and green monitor glow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTTlqwQSg8ez26tv6eLAo4AF6MmrMYR-I5_fElz40p8nXJnDKqm8dvxgj9hInLhmYi_Ts2g5A9g-4qlq0BHNrTMNRsDHn-2MTtjVXN2jPxwAIfg0boJRFQlQI61rj-ytO4_e1Lk2Qc6Gq25mLR-5gJ48hiEtD9BNRAYu7ntqeA4x0YO_k7v-Aj4tFRCJRo0U4eWnxyKNvFj3l76XakouV7POqwm7L5_JfKGXr8e-ueNZF8Ke_zmdPfik-k9vkVcR9D3Zl0_eWxEjw"/>
+<div class="absolute bottom-4 left-4 bg-[#1a1c1c] text-white px-2 py-1 font-headline font-black uppercase text-sm leading-none">Jax Koren</div>
+</div>
+<div class="flex justify-between items-center text-[10px] font-black text-[#0055ff] mb-2 tracking-widest">
+<span>PROTOCOL_DESIGN</span>
+<span class="text-[#1a1c1c] opacity-30 font-body">#1085</span>
+</div>
+<div class="h-1 bg-[#1a1c1c] mb-4 group-hover:bg-[#0055ff] transition-colors"></div>
+<p class="text-xs text-[#1a1c1c] font-body font-medium leading-relaxed">Game theory expert. Architect of the liveness incentive layer and sybil-resistance protocols.</p>
+</div>
+<!-- Member 3 -->
+<div class="bg-white border-2 border-[#1a1c1c] p-6 flex flex-col hover:bg-[#f3f3f3] transition-colors group">
+<div class="aspect-[4/5] bg-[#e2e2e2] mb-6 overflow-hidden relative border border-[#1a1c1c]">
+<img alt="ARCHITECT_03" class="w-full h-full object-cover grayscale brightness-110 contrast-125" data-alt="Digital art portrait of a non-binary individual with holographic glasses, vibrant aesthetic, minimalist tech background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDU7WfaNcyR-s8KMiGo_ZM2vInKgbIOQG5q5ahk2YiQSljW3kKuIB6akydG5xjgW-uqHKWg3auSzjrJ4IJBXWYvnO5WGnVEeaZsDQAq4FTe5lRwYoCDu5LWNSKMWUxKlspGrMALAQRV7p4UBTjcHU6vYjCP3KVjTZ4Qt97LRcRp8E0jVCP8I8Ekao51sctdlxlq_Sq-TfunsXw2jLAgxuC9tLh2q2tC8d9b7NYSxT3DeYcE61EWFPEA5RuGBCZiGb8UU666UWaxEH8"/>
+<div class="absolute bottom-4 left-4 bg-[#1a1c1c] text-white px-2 py-1 font-headline font-black uppercase text-sm leading-none">Miro Dax</div>
+</div>
+<div class="flex justify-between items-center text-[10px] font-black text-[#0055ff] mb-2 tracking-widest">
+<span>SECURITY_OPS</span>
+<span class="text-[#1a1c1c] opacity-30 font-body">#9920</span>
+</div>
+<div class="h-1 bg-[#1a1c1c] mb-4 group-hover:bg-[#0055ff] transition-colors"></div>
+<p class="text-xs text-[#1a1c1c] font-body font-medium leading-relaxed">Cyber-security researcher focusing on hardware-level attack vectors and biometric spoofing.</p>
+</div>
+<!-- Member 4 -->
+<div class="bg-white border-2 border-[#1a1c1c] p-6 flex flex-col hover:bg-[#f3f3f3] transition-colors group">
+<div class="aspect-[4/5] bg-[#e2e2e2] mb-6 overflow-hidden relative border border-[#1a1c1c]">
+<img alt="ARCHITECT_04" class="w-full h-full object-cover grayscale brightness-110 contrast-125" data-alt="Portrait of a person with long braided hair wearing a sleek dark hood, backlit by a soft green circular glow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1IXjTfVMV638VZbIhpBwx-vrks5TBE-T4i7MMaFKgK73xBw4M-W6n0_dmxoXmWBL_UqElBdlhF1pC4_zW_iKebhkl9QIIoxGHIX2YIB9qMHgbyTnz-Bz4B4duM45Kvh2ZXWAnQpAbGu3sJrtmyiBvRUUkkgfYo7rA2bO8HO3xTlHsoM7NzQWHUSU_jmE7vznJJ06FhX5tmygGdi-WY1xv-NDq1pwfwRDHI6nTALPWvb47opiQtIhpd-8AhvWCzdnrQRYQzKqUYUo"/>
+<div class="absolute bottom-4 left-4 bg-[#1a1c1c] text-white px-2 py-1 font-headline font-black uppercase text-sm leading-none">Nyx Wei</div>
+</div>
+<div class="flex justify-between items-center text-[10px] font-black text-[#0055ff] mb-2 tracking-widest">
+<span>ECOSYSTEM_STRAT</span>
+<span class="text-[#1a1c1c] opacity-30 font-body">#4402</span>
+</div>
+<div class="h-1 bg-[#1a1c1c] mb-4 group-hover:bg-[#0055ff] transition-colors"></div>
+<p class="text-xs text-[#1a1c1c] font-body font-medium leading-relaxed">Ecosystem lead. Focused on building bridges between legacy identity and the decentralized future.</p>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="bg-[#f9f9f9] border-2 border-[#1a1c1c] p-8 lg:p-16 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-96 h-96 bg-[#0055ff]/5 blur-[120px]"></div>
+<div class="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+<div>
+<h2 class="font-headline text-4xl font-black uppercase mb-6 tracking-tighter text-[#1a1c1c]">Ready to join the network?</h2>
+<p class="font-body text-[#1a1c1c] opacity-70 mb-8 text-lg">Deploy your first human-gated smart contract today using our SDK. Secure, sovereign, biological.</p>
+<div class="flex flex-wrap gap-4">
+<button class="bg-[#0055ff] text-white px-8 py-4 font-headline font-black uppercase text-xs tracking-widest hover:bg-[#0041c8] transition-all scale-98-on-click">START_BUILDING</button>
+<button class="border-2 border-[#1a1c1c] text-[#1a1c1c] px-8 py-4 font-headline font-black uppercase text-xs tracking-widest hover:bg-[#1a1c1c] hover:text-white transition-all scale-98-on-click">READ_WHITEPAPER</button>
+</div>
+</div>
+<div class="bg-white p-6 border-2 border-[#1a1c1c] font-body text-[10px] leading-tight text-[#0055ff] shadow-[8px_8px_0px_#1a1c1c]">
+<div class="mb-4 text-[#1a1c1c] font-black border-b border-[#e2e2e2] pb-2">TERMINAL_LOG_OUTPUT:</div>
+<div class="space-y-1 font-bold">
+<div>&gt; INITIALIZING HUMAN_LAYER_PROTOCOL...</div>
+<div>&gt; SYNCING WITH SUI_MAINNET [BLOCK: 92,104,221]</div>
+<div>&gt; LIVENESS_CHECK: ACTIVE</div>
+<div>&gt; ENTROPY_GENERATOR: READY</div>
+<div class="animate-pulse">&gt; WAITING FOR INPUT..._</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="lg:pl-64 border-t-2 border-[#e2e2e2] py-16 px-8 bg-white">
+<div class="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
+<div class="max-w-xs">
+<div class="font-headline font-black text-[#1a1c1c] text-3xl mb-4 tracking-tighter">SUI_HUMAN</div>
+<p class="text-[10px] text-[#1a1c1c] opacity-60 uppercase font-bold leading-relaxed tracking-widest">Securing the biological layer of the decentralized web. Built for Sui, engineered for humans.</p>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-16">
+<div>
+<div class="text-[10px] font-black text-[#0055ff] mb-6 uppercase tracking-widest">NETWORK</div>
+<ul class="text-[10px] font-bold space-y-3 uppercase text-[#1a1c1c] opacity-70">
+<li><a class="hover:text-[#0055ff] hover:opacity-100 transition-colors" href="#">Verify</a></li>
+<li><a class="hover:text-[#0055ff] hover:opacity-100 transition-colors" href="#">Node Status</a></li>
+<li><a class="hover:text-[#0055ff] hover:opacity-100 transition-colors" href="#">Ecosystem</a></li>
+</ul>
+</div>
+<div>
+<div class="text-[10px] font-black text-[#0055ff] mb-6 uppercase tracking-widest">RESOURCES</div>
+<ul class="text-[10px] font-bold space-y-3 uppercase text-[#1a1c1c] opacity-70">
+<li><a class="hover:text-[#0055ff] hover:opacity-100 transition-colors" href="#">SDK Docs</a></li>
+<li><a class="hover:text-[#0055ff] hover:opacity-100 transition-colors" href="#">Github</a></li>
+<li><a class="hover:text-[#0055ff] hover:opacity-100 transition-colors" href="#">Whitepaper</a></li>
+</ul>
+</div>
+<div>
+<div class="text-[10px] font-black text-[#0055ff] mb-6 uppercase tracking-widest">CONNECT</div>
+<ul class="text-[10px] font-bold space-y-3 uppercase text-[#1a1c1c] opacity-70">
+<li><a class="hover:text-[#0055ff] hover:opacity-100 transition-colors" href="#">X / Twitter</a></li>
+<li><a class="hover:text-[#0055ff] hover:opacity-100 transition-colors" href="#">Discord</a></li>
+<li><a class="hover:text-[#0055ff] hover:opacity-100 transition-colors" href="#">Contact</a></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="max-w-[1600px] mx-auto mt-16 pt-8 border-t border-[#e2e2e2] flex justify-between items-center">
+<div class="text-[9px] font-black text-[#1a1c1c] opacity-40 uppercase tracking-[0.3em]">© 2024 SUI_HUMAN PROTOCOL // HUMAN_ONLY_ZONE.</div>
+<div class="flex items-center gap-4">
+<span class="w-2 h-2 bg-[#0055ff] rounded-full animate-pulse"></span>
+<span class="text-[9px] font-black text-[#0055ff] uppercase tracking-widest">NETWORK_OPTIMAL</span>
+</div>
+</div>
+</footer>
+</body></html>

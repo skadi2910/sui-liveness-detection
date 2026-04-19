@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SUI_HUMAN - Sovereign Console</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=JetBrains+Mono:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-bright": "#2c2c2c",
+                    "surface": "#0e0e0e",
+                    "inverse-primary": "#006f16",
+                    "on-primary-container": "#005a10",
+                    "surface-variant": "#262626",
+                    "error": "#ff7351",
+                    "on-secondary-fixed": "#403f3f",
+                    "on-error-container": "#ffd2c8",
+                    "primary-fixed-dim": "#00ec3b",
+                    "on-primary": "#006413",
+                    "error-dim": "#d53d18",
+                    "tertiary-fixed": "#00cbfe",
+                    "surface-container": "#1a1919",
+                    "background": "#0e0e0e",
+                    "on-surface-variant": "#adaaaa",
+                    "on-tertiary-fixed": "#002733",
+                    "surface-container-high": "#201f1f",
+                    "on-secondary": "#525151",
+                    "tertiary-dim": "#00bcec",
+                    "on-error": "#450900",
+                    "inverse-on-surface": "#565554",
+                    "error-container": "#b92902",
+                    "secondary-fixed": "#e5e2e1",
+                    "surface-container-low": "#131313",
+                    "on-tertiary": "#00485c",
+                    "on-primary-fixed-variant": "#006513",
+                    "primary": "#9cff93",
+                    "on-primary-fixed": "#00440a",
+                    "primary-dim": "#00ec3b",
+                    "tertiary-container": "#00cbfe",
+                    "secondary-fixed-dim": "#d7d4d3",
+                    "on-secondary-container": "#d2d0cf",
+                    "secondary": "#e5e2e1",
+                    "surface-container-lowest": "#000000",
+                    "inverse-surface": "#fcf8f8",
+                    "tertiary-fixed-dim": "#00bcec",
+                    "on-surface": "#ffffff",
+                    "outline": "#777575",
+                    "surface-dim": "#0e0e0e",
+                    "on-background": "#ffffff",
+                    "secondary-dim": "#d7d4d3",
+                    "primary-fixed": "#00fc40",
+                    "secondary-container": "#474646",
+                    "on-tertiary-fixed-variant": "#00485b",
+                    "tertiary": "#6ad6ff",
+                    "on-tertiary-container": "#003e50",
+                    "surface-container-highest": "#262626",
+                    "outline-variant": "#494847",
+                    "primary-container": "#00fc40",
+                    "on-secondary-fixed-variant": "#5c5b5b",
+                    "surface-tint": "#9cff93"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0px",
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Space Grotesk"],
+                    "body": ["JetBrains Mono"],
+                    "label": ["JetBrains Mono"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0e0e0e;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: crosshair;
+        }
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 9999;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+        .glitch-effect:active {
+            transform: scale(0.98);
+            filter: hue-rotate(90deg);
+        }
+        .scanline-y {
+            width: 100%;
+            height: 2px;
+            background: #9cff93;
+            opacity: 0.3;
+            position: absolute;
+            top: 0;
+            animation: scan 4s linear infinite;
+        }
+        @keyframes scan {
+            0% { top: 0%; }
+            100% { top: 100%; }
+        }
+    </style>
+</head>
+<body class="text-on-surface overflow-hidden">
+<div class="crt-overlay"></div>
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-[#0e0e0e] border-b border-[#262626] shadow-[0_0_15px_rgba(156,255,147,0.1)]">
+<div class="text-xl font-bold font-['Space_Grotesk'] tracking-tighter text-[#9cff93]">SUI_HUMAN</div>
+<nav class="hidden md:flex gap-8">
+<a class="text-[#6ad6ff] opacity-70 font-['JetBrains_Mono'] uppercase tracking-widest text-xs hover:text-[#9cff93] transition-all steps-4" href="#">VERIFY</a>
+<a class="text-[#6ad6ff] opacity-70 font-['JetBrains_Mono'] uppercase tracking-widest text-xs hover:text-[#9cff93] transition-all steps-4" href="#">NETWORK</a>
+<a class="text-[#6ad6ff] opacity-70 font-['JetBrains_Mono'] uppercase tracking-widest text-xs hover:text-[#9cff93] transition-all steps-4" href="#">DOCS</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[#9cff93] hover:bg-[#131313] p-2 transition-all">terminal</button>
+<button class="material-symbols-outlined text-[#9cff93] hover:bg-[#131313] p-2 transition-all">settings</button>
+<button class="bg-[#9cff93] text-[#006413] px-4 py-1 font-bold text-xs font-['JetBrains_Mono'] glitch-effect">CONNECT_WALLET</button>
+</div>
+</header>
+<div class="flex pt-16 h-screen">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 flex flex-col justify-between py-8 bg-[#131313] border-r border-[#262626] font-['JetBrains_Mono'] text-[10px] uppercase">
+<div class="flex flex-col">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 bg-surface-container-highest border border-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">person</span>
+</div>
+<div>
+<div class="font-['Space_Grotesk'] font-black text-[#9cff93]">OPERATOR_01</div>
+<div class="text-primary opacity-60 text-[8px]">STATUS: ENCRYPTED</div>
+</div>
+</div>
+</div>
+<nav class="flex flex-col">
+<a class="bg-[#201f1f] text-[#9cff93] border-l-4 border-[#9cff93] px-6 py-4 flex items-center gap-3 hover:bg-[#201f1f] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm">terminal</span>
+<span>MAIN_APP</span>
+</a>
+<a class="text-[#a8a8a8] px-6 py-4 flex items-center gap-3 opacity-60 hover:text-[#9cff93] hover:bg-[#201f1f] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm">face</span>
+<span>LIVENESS</span>
+</a>
+<a class="text-[#a8a8a8] px-6 py-4 flex items-center gap-3 opacity-60 hover:text-[#9cff93] hover:bg-[#201f1f] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm">fingerprint</span>
+<span>SBT_VAULT</span>
+</a>
+<a class="text-[#a8a8a8] px-6 py-4 flex items-center gap-3 opacity-60 hover:text-[#9cff93] hover:bg-[#201f1f] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm">hub</span>
+<span>NODES</span>
+</a>
+<a class="text-[#a8a8a8] px-6 py-4 flex items-center gap-3 opacity-60 hover:text-[#9cff93] hover:bg-[#201f1f] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm">account_balance</span>
+<span>GOVERNANCE</span>
+</a>
+</nav>
+</div>
+<div class="flex flex-col gap-2">
+<div class="px-6 mb-4">
+<button class="w-full py-3 bg-surface-container-highest border border-primary/30 text-primary text-center font-bold tracking-widest hover:bg-primary hover:text-on-primary transition-all glitch-effect">
+                        INITIATE_SCAN
+                    </button>
+</div>
+<div class="flex flex-col">
+<a class="text-[#a8a8a8] px-6 py-2 flex items-center gap-3 opacity-60 hover:text-error transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">logout</span>
+<span>LOGOUT</span>
+</a>
+<a class="text-[#a8a8a8] px-6 py-2 flex items-center gap-3 opacity-60 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">help_center</span>
+<span>SUPPORT</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-64 flex-1 bg-surface grid grid-cols-12 overflow-hidden">
+<!-- Center Verification Area -->
+<div class="col-span-12 lg:col-span-8 p-12 flex flex-col items-center justify-center border-r border-[#262626] relative">
+<div class="absolute top-8 left-8">
+<div class="text-[10px] text-primary mb-1">SYSTEM_MODULE_07</div>
+<div class="h-1 w-24 bg-surface-container-high relative overflow-hidden">
+<div class="absolute inset-0 bg-primary w-2/3"></div>
+</div>
+</div>
+<!-- Webcam Feed Container -->
+<div class="relative w-full max-w-2xl aspect-video bg-surface-container-low border border-primary/20 p-2 overflow-hidden group">
+<div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary z-10"></div>
+<div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary z-10"></div>
+<div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary z-10"></div>
+<div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary z-10"></div>
+<div class="scanline-y"></div>
+<div class="w-full h-full bg-[#1a1919] relative overflow-hidden flex items-center justify-center">
+<img class="w-full h-full object-cover grayscale opacity-40 mix-blend-screen" data-alt="Monochrome cinematic portrait of a person in a dark room with technical UI overlays and scanning lines" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAm0EXFqLM8UdhGTpsdsFewHjTl6qs_EJjnjRJ5T1vaBiCOAtyPHxDLH_lPH86cKuhviSQ7V5bQcG39xgIUABPys0P2S1V_9VNiFaB0nhoF1wTv6NNL3kOwphwP1GAlcWwqsrDvTvbh0O77ITIjiWYL5n1wqNGXZHyclQwghEDQzxxOWGtxk0jpZMDnwzu0_p6Ym29399Yh9sVMLljOZHT5UeFZD2ueRC_bbbS6I3Ak6HXofeEPVY8PWFjv0cW8fODV015F5RLDPuA"/>
+<!-- Face Mesh Overlay (SVG) -->
+<div class="absolute inset-0 flex items-center justify-center opacity-40 pointer-events-none">
+<svg class="w-2/3 h-2/3 text-primary" viewbox="0 0 100 100">
+<path d="M50 20 C 35 20 25 35 25 50 C 25 70 35 85 50 85 C 65 85 75 70 75 50 C 75 35 65 20 50 20" fill="none" stroke="currentColor" stroke-dasharray="2 2" stroke-width="0.5"></path>
+<circle cx="40" cy="45" fill="currentColor" r="2"></circle>
+<circle cx="60" cy="45" fill="currentColor" r="2"></circle>
+<path d="M40 65 Q 50 70 60 65" fill="none" stroke="currentColor" stroke-width="1"></path>
+</svg>
+</div>
+<!-- Data HUD -->
+<div class="absolute bottom-4 left-4 text-[8px] text-primary uppercase font-bold bg-surface/80 p-2 backdrop-blur-sm">
+<div class="mb-1">LATENCY: 14MS</div>
+<div class="mb-1">FPS: 60.00</div>
+<div>RESOLUTION: 1080P</div>
+</div>
+</div>
+</div>
+<div class="mt-12 flex flex-col items-center">
+<div class="text-center mb-8">
+<h1 class="font-headline font-black text-4xl text-white tracking-tight uppercase mb-2">IDENTITY_ATTESTATION</h1>
+<p class="text-on-surface-variant text-xs max-w-md mx-auto leading-relaxed opacity-60">
+                            POSITION YOURSELF WITHIN THE BOUNDS OF THE SCANNER. ENSURE NEUTRAL LIGHTING FOR OPTIMAL BIOMETRIC HASH GENERATION.
+                        </p>
+</div>
+<button class="group relative px-12 py-5 bg-primary text-on-primary font-bold tracking-[0.2em] uppercase text-sm glitch-effect transition-all overflow-hidden">
+<span class="relative z-10">VERIFY_IDENTITY</span>
+<div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity"></div>
+</button>
+<div class="mt-6 flex items-center gap-4 text-[10px] text-tertiary">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-tertiary"></span>
+                            PROTOCOL_ACTIVE
+                        </div>
+<div class="flex items-center gap-1 opacity-50">
+<span class="w-1.5 h-1.5 bg-outline"></span>
+                            ZERO_KNOWLEDGE_PROOF
+                        </div>
+</div>
+</div>
+</div>
+<!-- Telemetry & Logs Sidebar -->
+<div class="hidden lg:flex lg:col-span-4 bg-surface-container-low flex-col">
+<div class="p-6 border-b border-[#262626]">
+<div class="text-[10px] text-primary font-bold mb-4 flex justify-between">
+<span>LIVE_TELEMETRY</span>
+<span class="animate-pulse">●</span>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-[9px] mb-1">
+<span class="text-on-surface-variant">CPU_LOAD</span>
+<span class="text-primary">42%</span>
+</div>
+<div class="h-1 bg-surface-container-high w-full">
+<div class="h-full bg-primary w-[42%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-[9px] mb-1">
+<span class="text-on-surface-variant">HASH_RATE</span>
+<span class="text-tertiary">1.4GH/S</span>
+</div>
+<div class="h-1 bg-surface-container-high w-full">
+<div class="h-full bg-tertiary w-[78%]"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex-1 p-6 font-['JetBrains_Mono'] overflow-hidden flex flex-col">
+<div class="text-[10px] text-on-surface-variant font-bold mb-4">SYSTEM_LOGS</div>
+<div class="text-[9px] text-primary/70 space-y-2 overflow-y-auto">
+<div class="flex gap-2">
+<span class="text-outline">[09:24:01]</span>
+<span class="text-white">BOOT_SEQUENCE_INITIALIZED</span>
+</div>
+<div class="flex gap-2">
+<span class="text-outline">[09:24:02]</span>
+<span>PEER_NETWORK_CONNECTED: 4,921 NODES</span>
+</div>
+<div class="flex gap-2">
+<span class="text-outline">[09:24:05]</span>
+<span>BIOMETRIC_INTERFACE_ACTIVE</span>
+</div>
+<div class="flex gap-2">
+<span class="text-outline">[09:24:08]</span>
+<span class="text-tertiary">ENCRYPTED_HANDSHAKE_COMPLETE</span>
+</div>
+<div class="flex gap-2">
+<span class="text-outline">[09:24:12]</span>
+<span>AWAITING_INPUT...</span>
+</div>
+<div class="flex gap-2">
+<span class="text-outline">[09:25:01]</span>
+<span class="text-error">ERROR: AMBIENT_LIGHT_LEVEL_LOW</span>
+</div>
+<div class="flex gap-2">
+<span class="text-outline">[09:25:05]</span>
+<span>ADJUSTING_EXPOSURE_VALS...</span>
+</div>
+<div class="flex gap-2">
+<span class="text-outline">[09:25:10]</span>
+<span class="text-primary">SIGNAL_STRENGTH_NOMINAL</span>
+</div>
+<div class="flex gap-2">
+<span class="text-outline">[09:25:15]</span>
+<span>TRACKING_EYE_MOVEMENT: OK</span>
+</div>
+<div class="flex gap-2">
+<span class="text-outline">[09:25:18]</span>
+<span>BLOOD_OXYGEN_DETECTION: STABLE</span>
+</div>
+<div class="flex gap-2">
+<span class="text-outline">[09:25:22]</span>
+<span class="text-white">CHALLENGE_VECTOR_GENERATED</span>
+</div>
+</div>
+<div class="mt-auto pt-6 border-t border-[#262626]">
+<div class="bg-surface-container-high p-4 border-l-2 border-tertiary">
+<div class="text-[9px] text-on-surface-variant mb-2">QUICK_STATS</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<div class="text-xs font-bold text-white">4.8k</div>
+<div class="text-[8px] text-outline">ATTESTATIONS</div>
+</div>
+<div>
+<div class="text-xs font-bold text-white">99.9%</div>
+<div class="text-[8px] text-outline">RELIABILITY</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Background Elements -->
+<div class="fixed top-0 right-0 w-full h-full pointer-events-none opacity-10">
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,#9cff93_0%,transparent_50%)]"></div>
+</div>
+</body></html>

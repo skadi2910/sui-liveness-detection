@@ -16,6 +16,11 @@ import {
   verificationModeHints,
   verificationModeLabels,
 } from "../_lib/constants";
+import {
+  formatProofOperation,
+  formatProofValue,
+  getProofMetadataResult,
+} from "@/features/verifier-core/lib/proof-metadata";
 import type {
   AttackType,
   CalibrationLabel,
@@ -47,8 +52,8 @@ export function AdminHeroPanel(props: {
   verificationMode: VerificationMode;
 }) {
   return (
-    <section className="panel hero-panel">
-      <div>
+    <section className="panel hero-panel admin-hero-panel">
+      <div className="admin-hero-copy">
         <p className="eyebrow">SUI HUMAN / ADMIN CONSOLE</p>
         <h1>Verifier testing and QA console</h1>
         <p className="lede">
@@ -186,7 +191,7 @@ export function SessionControlsPanel(props: {
   resultMode: string;
 }) {
   return (
-    <div className="panel control-panel">
+    <div className="panel control-panel admin-controls-panel">
       <div className="panel-header">
         <h2>Session Controls</h2>
         <p>{challengeHint(props.challengeType)}</p>
@@ -531,6 +536,66 @@ export function ServerChecksPanel(props: {
   );
 }
 
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "Unavailable";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
+
+export function ProofMetadataPanel(props: {
+  result: VerificationResult | null;
+  sessionId: string | null;
+}) {
+  const result = getProofMetadataResult(props.result);
+  const hasResult = Boolean(result);
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <h2>Proof Metadata</h2>
+        <p>Seal, Walrus, and chain references returned after the terminal finalize step.</p>
+      </div>
+
+      {hasResult ? (
+        <>
+          <div className="status-box">
+            <div><span>proof status</span><strong>{formatProofValue(result?.status, "Pending")}</strong></div>
+            <div><span>proof operation</span><strong>{formatProofOperation(result?.proof_operation)}</strong></div>
+            <div><span>network</span><strong>{formatProofValue(result?.chain_network)}</strong></div>
+            <div><span>expires</span><strong>{formatDateTime(result?.expires_at)}</strong></div>
+          </div>
+          <div className="server-note">
+            <span>proof id</span>
+            <strong>{formatProofValue(result?.proof_id, "Pending")}</strong>
+          </div>
+          <div className="server-note">
+            <span>transaction digest</span>
+            <strong className="break-all">{formatProofValue(result?.transaction_digest)}</strong>
+          </div>
+          <div className="server-note">
+            <span>walrus blob id</span>
+            <strong className="break-all">{formatProofValue(result?.walrus_blob_id ?? result?.blob_id)}</strong>
+          </div>
+          <div className="server-note">
+            <span>walrus blob object</span>
+            <strong className="break-all">{formatProofValue(result?.walrus_blob_object_id)}</strong>
+          </div>
+          <div className="server-note">
+            <span>seal identity</span>
+            <strong className="break-all">{formatProofValue(result?.seal_identity)}</strong>
+          </div>
+          <div className="server-note">
+            <span>session reference</span>
+            <strong>{formatProofValue(props.sessionId)}</strong>
+          </div>
+        </>
+      ) : (
+        <p>No terminal proof metadata yet. Finalize a session to populate this panel.</p>
+      )}
+    </div>
+  );
+}
+
 export function TuningSnapshotPanel(props: { backendTuning: HealthResponse["tuning"] | undefined }) {
   return (
     <div className="panel">
@@ -662,7 +727,7 @@ export function CalibrationExportPanel(props: {
 
 export function LogPanels(props: { logs: Record<HarnessLogSection, LogEntry[]> }) {
   return (
-    <section className="grid">
+    <section className="grid gap-6 xl:grid-cols-3">
       {(["pipeline", "detection", "signals"] as const).map((section) => (
         <div className="panel" key={section}>
           <div className="panel-header">

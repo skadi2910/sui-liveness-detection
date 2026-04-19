@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SUI_HUMAN // OVERVIEW</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700;900&amp;family=JetBrains+Mono:wght@400;700&amp;family=Inter:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-bright": "#ffffff",
+                      "surface": "#f9f9f9",
+                      "inverse-primary": "#0055ff",
+                      "on-primary-container": "#0041c8",
+                      "surface-variant": "#e2e2e2",
+                      "error": "#d32f2f",
+                      "on-secondary-fixed": "#1a1c1c",
+                      "on-error-container": "#410002",
+                      "primary-fixed-dim": "#0055ff",
+                      "on-primary": "#ffffff",
+                      "error-dim": "#f44336",
+                      "tertiary-fixed": "#00d4ff",
+                      "surface-container": "#f3f3f3",
+                      "background": "#f9f9f9",
+                      "on-surface-variant": "#5a5a5a",
+                      "on-tertiary-fixed": "#001f24",
+                      "surface-container-high": "#e8e8e8",
+                      "on-secondary": "#ffffff",
+                      "tertiary-dim": "#00d4ff",
+                      "on-error": "#ffffff",
+                      "inverse-on-surface": "#f1f1f1",
+                      "error-container": "#f9dedc",
+                      "secondary-fixed": "#1a1c1c",
+                      "surface-container-low": "#ffffff",
+                      "on-tertiary": "#ffffff",
+                      "on-primary-fixed-variant": "#0041c8",
+                      "primary": "#0055ff",
+                      "on-primary-fixed": "#ffffff",
+                      "primary-dim": "#0041c8",
+                      "tertiary-container": "#c1e8ff",
+                      "secondary-fixed-dim": "#1a1c1c",
+                      "on-secondary-container": "#1a1c1c",
+                      "secondary": "#1a1c1c",
+                      "surface-container-lowest": "#ffffff",
+                      "inverse-surface": "#1a1c1c",
+                      "tertiary-fixed-dim": "#00d4ff",
+                      "on-surface": "#1a1c1c",
+                      "outline": "#777777",
+                      "surface-dim": "#f9f9f9",
+                      "on-background": "#1a1c1c",
+                      "secondary-dim": "#1a1c1c",
+                      "primary-fixed": "#0055ff",
+                      "secondary-container": "#e2e2e2",
+                      "on-tertiary-fixed-variant": "#004a57",
+                      "tertiary": "#00d4ff",
+                      "on-tertiary-container": "#001f24",
+                      "surface-container-highest": "#e2e2e2",
+                      "outline-variant": "#c4c4c4",
+                      "primary-container": "#0055ff",
+                      "on-secondary-fixed-variant": "#1a1c1c",
+                      "surface-tint": "#0055ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "4px",
+                      "lg": "4px",
+                      "xl": "4px",
+                      "full": "9999px"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk"],
+                      "body": ["JetBrains Mono"],
+                      "label": ["JetBrains Mono"]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .technical-grid {
+            background-image: radial-gradient(#e2e2e2 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .manuscript-border {
+            border: 1px solid #e2e2e2;
+        }
+        .active-tab {
+            color: #0041c8;
+            background-color: #e2e2e2;
+            border-left: 4px solid #0041c8;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary selection:text-on-primary">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-8 h-16 bg-[#f9f9f9] border-b-2 border-[#e2e2e2] no-shadows">
+<div class="text-xl font-bold tracking-tighter text-[#1a1c1c] font-headline">SUI_HUMAN</div>
+<nav class="hidden md:flex gap-8 font-headline tracking-tight text-sm uppercase">
+<a class="text-[#0041c8] border-b-2 border-[#0041c8] pb-1 transition-colors" href="#">VERIFY</a>
+<a class="text-[#1a1c1c] opacity-70 hover:opacity-100 hover:text-[#0041c8] transition-colors" href="#">NETWORK</a>
+<a class="text-[#1a1c1c] opacity-70 hover:opacity-100 hover:text-[#0041c8] transition-colors" href="#">DOCS</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[#1a1c1c] opacity-70 hover:text-[#0041c8]" data-icon="terminal">terminal</button>
+<button class="material-symbols-outlined text-[#1a1c1c] opacity-70 hover:text-[#0041c8]" data-icon="settings">settings</button>
+<button class="bg-[#0041c8] text-white px-5 py-2 text-xs font-bold font-headline uppercase tracking-tight hover:brightness-110 active:opacity-80 transition-all rounded">CONNECT WALLET</button>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 flex flex-col justify-between py-6 bg-[#f3f3f3] border-r border-[#e2e2e2] z-40 hidden md:flex">
+<div class="space-y-1">
+<div class="px-6 mb-10">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-[#e2e2e2] rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-[#0041c8]" data-icon="person">person</span>
+</div>
+<div>
+<div class="font-black text-[#1a1c1c] font-headline text-sm tracking-tight">OPERATOR_01</div>
+<div class="opacity-50 text-[9px] font-medium tracking-widest">IDENTITY_VERIFIED</div>
+</div>
+</div>
+</div>
+<nav class="flex flex-col">
+<a class="active-tab px-6 py-4 flex items-center gap-4 font-headline text-xs font-medium tracking-widest transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+                TERMINAL
+            </a>
+<a class="text-[#1a1c1c] opacity-60 px-6 py-4 flex items-center gap-4 font-headline text-xs font-medium tracking-widest hover:bg-[#e2e2e2] transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="face">face</span>
+                LIVENESS
+            </a>
+<a class="text-[#1a1c1c] opacity-60 px-6 py-4 flex items-center gap-4 font-headline text-xs font-medium tracking-widest hover:bg-[#e2e2e2] transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="verified_user">verified_user</span>
+                SBT_VAULT
+            </a>
+<a class="text-[#1a1c1c] opacity-60 px-6 py-4 flex items-center gap-4 font-headline text-xs font-medium tracking-widest hover:bg-[#e2e2e2] transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+                NODES
+            </a>
+<a class="text-[#1a1c1c] opacity-60 px-6 py-4 flex items-center gap-4 font-headline text-xs font-medium tracking-widest hover:bg-[#e2e2e2] transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="account_balance">account_balance</span>
+                GOVERNANCE
+            </a>
+</nav>
+</div>
+<div class="px-6 space-y-4">
+<button class="w-full bg-[#0041c8] text-white py-3 font-bold text-xs font-headline tracking-widest rounded hover:brightness-110 active:scale-[0.98] transition-all">INITIATE_SCAN</button>
+<div class="space-y-2 pt-4 border-t border-[#e2e2e2]">
+<a class="text-[#1a1c1c] opacity-60 flex items-center gap-2 hover:text-[#0041c8] text-[10px] transition-colors" href="#"><span class="material-symbols-outlined text-sm" data-icon="logout">logout</span> LOGOUT</a>
+<a class="text-[#1a1c1c] opacity-60 flex items-center gap-2 hover:text-[#0041c8] text-[10px] transition-colors" href="#"><span class="material-symbols-outlined text-sm" data-icon="help_center">help_center</span> SUPPORT</a>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="pt-24 pb-12 px-6 md:pl-72 md:pr-12 min-h-screen technical-grid">
+<!-- Hero Section -->
+<section class="mb-20">
+<div class="max-w-4xl">
+<div class="inline-block px-3 py-1 bg-[#e2e2e2] text-[#1a1c1c] text-[10px] font-bold mb-6 border border-[#c4c4c4] rounded-sm">MANUSCRIPT_V2.0.48</div>
+<h1 class="font-headline text-5xl md:text-7xl font-black text-[#1a1c1c] leading-[0.95] tracking-tighter mb-8 uppercase">
+                Proof of <span class="text-[#0041c8]">Biological</span> Integrity
+            </h1>
+<p class="text-on-surface-variant max-w-2xl text-lg leading-relaxed border-l-4 border-[#0041c8] pl-8">
+                Sui Human leverages advanced computer vision and behavioral heuristics to anchor digital identity in the physical reality of the user. No bots. No sybils. Only sovereign humans.
+            </p>
+</div>
+</section>
+<!-- Process Grid -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-0 manuscript-border bg-white overflow-hidden">
+<!-- Step 1: AI Liveness -->
+<div class="md:col-span-4 p-10 border-b md:border-b-0 md:border-r border-[#e2e2e2] relative group hover:bg-[#f9f9f9] transition-colors">
+<div class="absolute top-4 right-4 text-4xl font-headline font-black text-[#e2e2e2]">01</div>
+<div class="mb-12">
+<span class="material-symbols-outlined text-[#0041c8] text-4xl mb-6 block" data-icon="visibility">visibility</span>
+<h3 class="font-headline text-2xl font-bold mb-4 tracking-tight text-[#1a1c1c]">AI LIVENESS</h3>
+<p class="text-xs text-on-surface-variant leading-relaxed mb-8 uppercase tracking-wide">
+                    Real-time anti-spoofing engine using neural networks to detect deepfakes and mask injections.
+                </p>
+<ul class="text-[10px] space-y-3 font-bold tracking-widest text-[#5a5a5a]">
+<li class="flex items-center gap-3"><span class="w-1.5 h-1.5 bg-[#0041c8]"></span> 3D DEPTH MAPPING</li>
+<li class="flex items-center gap-3"><span class="w-1.5 h-1.5 bg-[#0041c8]"></span> PULSE DETECTION</li>
+<li class="flex items-center gap-3"><span class="w-1.5 h-1.5 bg-[#0041c8]"></span> CHALLENGE-RESPONSE</li>
+</ul>
+</div>
+<div class="aspect-square bg-[#f3f3f3] border border-[#e2e2e2] relative overflow-hidden">
+<img alt="Abstract AI face mapping grid" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition-all duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBv45tfggBiA6yeR3FurWU41FCnMuqqugU1bjHvPQdCchoGMLeTQ9B4Q5KxlxQO4yKise5xXKnBXHfa9SHL3Y_Y4iLMPvV6QEcqpiJZeY4vDk7DYz5UYJbzHfpTKZu1swena6xSZNqMIHgWg01md3lOJLhyoyXnoKy5UBzqoVVbH0bb33h67tKpnPuJujyTDxAcUQx5e_Uze2WL_bsa_CcQH9uw3AKWyLg8dsmGV3gGYeifoGgEdkWqbbOU3yDjCzyom_M4Ga1UGzU"/>
+<div class="absolute inset-0 bg-[#0041c8]/5"></div>
+<div class="absolute bottom-2 left-2 text-[8px] font-black text-[#0041c8] bg-white px-2 py-1 border border-[#e2e2e2]">STATUS: SCANNING_GEO</div>
+</div>
+</div>
+<!-- Step 2: Behavioral Analysis -->
+<div class="md:col-span-4 p-10 border-b md:border-b-0 md:border-r border-[#e2e2e2] relative group hover:bg-[#f9f9f9] transition-colors">
+<div class="absolute top-4 right-4 text-4xl font-headline font-black text-[#e2e2e2]">02</div>
+<div class="mb-12">
+<span class="material-symbols-outlined text-[#0041c8] text-4xl mb-6 block" data-icon="psychology">psychology</span>
+<h3 class="font-headline text-2xl font-bold mb-4 tracking-tight text-[#1a1c1c]">BEHAVIORAL</h3>
+<p class="text-xs text-on-surface-variant leading-relaxed mb-8 uppercase tracking-wide">
+                    Evaluation of non-linear patterns to distinguish human movement from automated script executions.
+                </p>
+<div class="h-24 w-full bg-[#f3f3f3] border border-[#e2e2e2] flex items-center justify-center relative px-6 overflow-hidden">
+<div class="w-full h-[1px] bg-[#0041c8]/10 absolute top-1/2 left-0"></div>
+<div class="flex items-end gap-1.5 h-12">
+<div class="w-1 bg-[#0041c8] h-4"></div>
+<div class="w-1 bg-[#0041c8] h-10"></div>
+<div class="w-1 bg-[#0041c8] h-6"></div>
+<div class="w-1 bg-[#0041c8] h-12"></div>
+<div class="w-1 bg-[#0041c8] h-5"></div>
+<div class="w-1 bg-[#0041c8] h-8"></div>
+<div class="w-1 bg-[#0041c8] h-3"></div>
+</div>
+</div>
+</div>
+<div class="bg-white p-5 border border-[#e2e2e2]">
+<div class="text-[9px] mb-3 font-bold text-[#1a1c1c] tracking-widest border-b border-[#e2e2e2] pb-1">HEURISTIC_LOGS</div>
+<code class="text-[9px] text-[#5a5a5a] space-y-1.5 block font-mono">
+                    [OK] entropy_check: 0.982<br/>
+                    [OK] jitter_analysis: pass<br/>
+                    [OK] latency_dist: valid<br/>
+                    [OK] script_inj: none
+                </code>
+</div>
+</div>
+<!-- Step 3: SBT Issuance -->
+<div class="md:col-span-4 p-10 relative group hover:bg-[#f9f9f9] transition-colors">
+<div class="absolute top-4 right-4 text-4xl font-headline font-black text-[#e2e2e2]">03</div>
+<div class="mb-12">
+<span class="material-symbols-outlined text-[#0041c8] text-4xl mb-6 block" data-icon="token">token</span>
+<h3 class="font-headline text-2xl font-bold mb-4 tracking-tight text-[#1a1c1c]">SBT ISSUANCE</h3>
+<p class="text-xs text-on-surface-variant leading-relaxed mb-8 uppercase tracking-wide">
+                    A non-transferable Soulbound Token minted on Sui, serving as a permanent on-chain certification.
+                </p>
+<button class="w-full py-4 border-2 border-[#0041c8] text-[#0041c8] font-black text-xs tracking-widest hover:bg-[#0041c8] hover:text-white transition-all rounded-sm uppercase">
+                    GENERATE_CREDENTIAL
+                </button>
+</div>
+<div class="mt-12 flex justify-center">
+<div class="w-36 h-36 border border-[#e2e2e2] rounded flex items-center justify-center group-hover:rotate-12 transition-all duration-700 bg-[#f3f3f3] relative">
+<div class="absolute inset-2 border border-dashed border-[#c4c4c4]"></div>
+<div class="w-24 h-24 bg-white border-2 border-[#0041c8] flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-4xl text-[#0041c8]" data-icon="fingerprint" style="font-variation-settings: 'FILL' 1;">fingerprint</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- System Architecture Section -->
+<section class="mt-24">
+<h2 class="font-headline text-3xl font-black mb-12 uppercase border-b-2 border-[#1a1c1c] pb-4 tracking-tight">System Architecture</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Data Vault -->
+<div class="bg-white p-8 manuscript-border border-l-4 border-l-[#00d4ff]">
+<div class="flex justify-between items-start mb-10">
+<span class="material-symbols-outlined text-[#00d4ff]" data-icon="encrypted">encrypted</span>
+<span class="text-[9px] font-bold text-[#00d4ff] uppercase tracking-widest">ZERO_KNOWLEDGE</span>
+</div>
+<h4 class="text-sm font-black mb-4 uppercase tracking-tighter font-headline">SBT_VAULT_ENGINE</h4>
+<p class="text-[11px] text-[#5a5a5a] leading-relaxed uppercase">Biometric vectors never leave the local enclave. Only cryptographic attestations are transmitted to the network.</p>
+</div>
+<!-- Network Load -->
+<div class="bg-white p-8 manuscript-border border-l-4 border-l-[#0041c8] col-span-1 md:col-span-2">
+<div class="flex justify-between items-start mb-8">
+<h4 class="text-sm font-black uppercase tracking-tighter font-headline">INTEGRITY_MONITOR</h4>
+<span class="text-[10px] font-bold text-[#0041c8] flex items-center gap-2">
+<span class="w-2 h-2 bg-[#0041c8] animate-pulse rounded-full"></span>
+                        LIVE_ACTIVE
+                    </span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+<div>
+<div class="text-[9px] font-bold opacity-40 uppercase mb-1">TPS_HUMAN</div>
+<div class="text-2xl font-black font-headline tracking-tighter text-[#1a1c1c]">1,402</div>
+</div>
+<div>
+<div class="text-[9px] font-bold opacity-40 uppercase mb-1">VERIFIED</div>
+<div class="text-2xl font-black font-headline tracking-tighter text-[#1a1c1c]">2.8M</div>
+</div>
+<div>
+<div class="text-[9px] font-bold opacity-40 uppercase mb-1 text-error">BLOCKED</div>
+<div class="text-2xl font-black font-headline tracking-tighter text-error">94.2k</div>
+</div>
+<div>
+<div class="text-[9px] font-bold opacity-40 uppercase mb-1 text-[#00d4ff]">LATENCY</div>
+<div class="text-2xl font-black font-headline tracking-tighter text-[#00d4ff]">14ms</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer -->
+<footer class="mt-32 pt-16 border-t-2 border-[#1a1c1c] flex flex-col md:flex-row justify-between items-start md:items-end gap-12">
+<div class="w-full md:w-1/2">
+<div class="text-3xl font-black font-headline text-[#1a1c1c] mb-6 tracking-tighter uppercase">SUI_HUMAN_CONSOLE_V2</div>
+<p class="text-[11px] text-[#5a5a5a] leading-relaxed uppercase font-bold tracking-tight">
+                The sovereign identity layer for the decentralized web. Built with uncompromising integrity. Secured by biological reality. Documented for eternity.
+            </p>
+</div>
+<div class="flex flex-col items-end w-full md:w-auto">
+<div class="text-[10px] mb-4 font-bold tracking-widest text-[#1a1c1c]">UPTIME: 99.9992%</div>
+<div class="flex gap-2">
+<span class="w-6 h-1.5 bg-[#0041c8]"></span>
+<span class="w-6 h-1.5 bg-[#0041c8]"></span>
+<span class="w-6 h-1.5 bg-[#0041c8]"></span>
+<span class="w-6 h-1.5 bg-[#e2e2e2]"></span>
+<span class="w-6 h-1.5 bg-[#e2e2e2]"></span>
+</div>
+<div class="mt-6 text-[8px] opacity-40 uppercase tracking-widest font-bold">© 2024 SUI_HUMAN // ALL_RIGHTS_RESERVED</div>
+</div>
+</footer>
+</main>
+</body></html>

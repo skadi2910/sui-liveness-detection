@@ -89,6 +89,7 @@ class VerificationProgress(BaseModel):
     completed_challenges: list[ChallengeType] = Field(default_factory=list)
     step_status: StepStatus
     progress: float = Field(ge=0.0, le=1.0)
+    finalize_ready: bool = False
     frames_processed: int = Field(ge=0)
     message: str
     debug: dict[str, Any] | None = None
@@ -117,9 +118,55 @@ class VerificationResult(BaseModel):
     deepfake_enabled: bool = False
     attack_analysis: dict[str, Any] | None = None
     proof_id: str | None = None
+    transaction_digest: str | None = None
+    proof_operation: str | None = None
+    chain_network: str | None = None
+    walrus_blob_id: str | None = None
+    walrus_blob_object_id: str | None = None
+    seal_identity: str | None = None
+    evidence_schema_version: int | None = None
+    model_hash: str | None = None
     blob_id: str | None = None
     expires_at: datetime | None = None
     failure_reason: str | None = None
+
+
+class ProofClaimOperation(str, Enum):
+    MINT = "mint"
+    RENEW = "renew"
+
+
+class PreparedProofClaim(BaseModel):
+    session_id: str
+    wallet_address: str
+    operation: ProofClaimOperation
+    package_id: str
+    registry_object_id: str
+    module_name: str
+    clock_object_id: str = "0x6"
+    claim_id: str
+    claim_expires_at_ms: int = Field(ge=0)
+    proof_object_id: str | None = None
+    walrus_blob_id: str
+    walrus_blob_object_id: str
+    seal_identity: str
+    evidence_schema_version: int = Field(ge=0)
+    model_hash: str | None = None
+    confidence_bps: int = Field(ge=0)
+    issued_at_ms: int = Field(ge=0)
+    expires_at_ms: int = Field(ge=0)
+    challenge_type: str
+    signature_b64: str
+    chain_network: str | None = None
+
+
+class CompleteProofClaimRequest(BaseModel):
+    transaction_digest: str = Field(min_length=3)
+    proof_id: str | None = Field(default=None, min_length=3)
+
+
+class CancelProofClaimRequest(BaseModel):
+    reason: str | None = None
 
 
 class EvidenceBlob(BaseModel):
@@ -249,8 +296,10 @@ class SessionRecord(BaseModel):
     result: VerificationResult | None = None
     frames_processed: int = 0
     progress: float = 0.0
+    finalize_ready: bool = False
     last_message: str = "Session created"
     frame_payloads: list[dict[str, Any]] = Field(default_factory=list)
+    pending_proof_claim: PreparedProofClaim | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -317,6 +366,7 @@ class SessionRecord(BaseModel):
             completed_challenges=self.completed_challenges,
             step_status=self.step_status,
             progress=self.progress,
+            finalize_ready=self.finalize_ready,
             frames_processed=self.frames_processed,
             message=self.last_message,
             debug=self.debug,

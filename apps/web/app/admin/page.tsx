@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AppShell } from "@/components/chrome/app-shell";
 import type { ChallengeType, VerificationMode } from "@sui-human/shared";
 import {
   AdminHeroPanel,
@@ -9,6 +10,7 @@ import {
   CameraPanel,
   JsonPanel,
   LogPanels,
+  ProofMetadataPanel,
   ServerChecksPanel,
   SessionControlsPanel,
   TuningSnapshotPanel,
@@ -102,7 +104,28 @@ export default function AdminPage() {
     !verifier.result;
 
   return (
-    <main className="page-shell">
+    <AppShell
+      activeSection="admin"
+      aside={
+        <>
+          <BackendHealthPanel health={verifier.health} />
+          <ServerChecksPanel
+            backendDebug={verifier.backendDebug}
+            result={verifier.result}
+            reportedAttackType={calibration.attackType}
+          />
+          <TuningSnapshotPanel backendTuning={verifier.health?.tuning} />
+        </>
+      }
+      description="Internal console for threshold tuning, attack simulation, browser-versus-backend comparison, and calibration export. The QA surface stays fully featured, but now lives inside the same shell system as the public client experience."
+      eyebrow="Internal / QA console"
+      meta={[
+        { label: "Backend", value: verifier.health?.status ?? "warming" },
+        { label: "Websocket", value: verifier.connectionState },
+        { label: "Mode", value: verificationMode },
+      ]}
+      title="Verifier Testing And QA Console"
+    >
       <AdminHeroPanel
         cameraState={media.cameraState}
         landmarkState={media.landmarkState}
@@ -111,7 +134,7 @@ export default function AdminPage() {
         verificationMode={verificationMode}
       />
 
-      <section className="grid">
+      <section className="grid gap-6 2xl:grid-cols-[minmax(0,1.05fr)_minmax(24rem,0.95fr)]">
         <CameraPanel
           videoRef={media.videoRef}
           overlayCanvasRef={media.overlayCanvasRef}
@@ -161,26 +184,11 @@ export default function AdminPage() {
         />
       </section>
 
-      <section className="grid">
-        <BackendHealthPanel health={verifier.health} />
-        <ServerChecksPanel
-          backendDebug={verifier.backendDebug}
-          result={verifier.result}
-          reportedAttackType={calibration.attackType}
-        />
-        <TuningSnapshotPanel backendTuning={verifier.health?.tuning} />
+      <section className="grid gap-6 xl:grid-cols-2">
         <JsonPanel
           title="Landmark Telemetry"
           description="Latest browser-side metrics and the backend debug payload."
           value={{ browser: media.landmarkMetrics, backend: verifier.backendDebug }}
-        />
-      </section>
-
-      <section className="grid">
-        <JsonPanel
-          title="Latest Result"
-          description="Terminal event from the verifier."
-          value={verifier.result ?? "No terminal result yet."}
         />
         <CalibrationExportPanel
           calibrationLabel={calibration.calibrationLabel}
@@ -203,7 +211,18 @@ export default function AdminPage() {
         />
       </section>
 
+      <ProofMetadataPanel
+        result={verifier.result}
+        sessionId={verifier.session?.session_id ?? null}
+      />
+
+      <JsonPanel
+        title="Latest Result"
+        description="Terminal event from the verifier."
+        value={verifier.result ?? "No terminal result yet."}
+      />
+
       <LogPanels logs={logs} />
-    </main>
+    </AppShell>
   );
 }

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SUI_HUMAN // VERIFICATION_CONSOLE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;family=Space+Grotesk:wght@300;400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed": "#403f3f",
+                        "primary-dim": "#00ec3b",
+                        "on-tertiary-container": "#003e50",
+                        "surface": "#0e0e0e",
+                        "on-tertiary-fixed-variant": "#00485b",
+                        "tertiary": "#6ad6ff",
+                        "surface-container-lowest": "#000000",
+                        "surface-dim": "#0e0e0e",
+                        "tertiary-fixed": "#00cbfe",
+                        "secondary": "#e5e2e1",
+                        "primary-fixed-dim": "#00ec3b",
+                        "primary": "#9cff93",
+                        "on-secondary-container": "#d2d0cf",
+                        "on-tertiary-fixed": "#002733",
+                        "error-dim": "#d53d18",
+                        "primary-container": "#00fc40",
+                        "on-surface-variant": "#adaaaa",
+                        "on-error": "#450900",
+                        "on-secondary": "#525151",
+                        "secondary-fixed-dim": "#d7d4d3",
+                        "on-primary-fixed-variant": "#006513",
+                        "surface-container-high": "#201f1f",
+                        "on-primary-container": "#005a10",
+                        "inverse-on-surface": "#565554",
+                        "tertiary-dim": "#00bcec",
+                        "on-background": "#ffffff",
+                        "on-primary": "#006413",
+                        "tertiary-fixed-dim": "#00bcec",
+                        "surface-variant": "#262626",
+                        "surface-container-highest": "#262626",
+                        "on-tertiary": "#00485c",
+                        "error": "#ff7351",
+                        "secondary-container": "#474646",
+                        "surface-tint": "#9cff93",
+                        "surface-bright": "#2c2c2c",
+                        "on-primary-fixed": "#00440a",
+                        "surface-container": "#1a1919",
+                        "tertiary-container": "#00cbfe",
+                        "outline": "#777575",
+                        "background": "#0e0e0e",
+                        "inverse-surface": "#fcf8f8",
+                        "on-error-container": "#ffd2c8",
+                        "on-surface": "#ffffff",
+                        "primary-fixed": "#00fc40",
+                        "error-container": "#b92902",
+                        "secondary-dim": "#d7d4d3",
+                        "inverse-primary": "#006f16",
+                        "surface-container-low": "#131313",
+                        "secondary-fixed": "#e5e2e1",
+                        "outline-variant": "#494847",
+                        "on-secondary-fixed-variant": "#5c5b5b"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0px",
+                        "lg": "0px",
+                        "xl": "0px",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["JetBrains Mono"],
+                        "label": ["JetBrains Mono"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .crt-overlay {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 10;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(156, 255, 147, 0.1) 50%, rgba(0, 0, 0, 0) 100%);
+            opacity: 0.1;
+            pointer-events: none;
+        }
+        .glitch-text:hover {
+            text-shadow: 2px 0 #6ad6ff, -2px 0 #ff7351;
+        }
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            cursor: crosshair;
+        }
+        h1, h2, h3 {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .steps-4 {
+            transition-timing-function: steps(4);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface overflow-hidden selection:bg-primary selection:text-on-primary">
+<!-- CRT Visual Layer -->
+<div class="fixed inset-0 crt-overlay z-[100] opacity-30"></div>
+<div class="fixed inset-0 scanline animate-pulse z-[101]"></div>
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-[#0e0e0e] border-b border-[#262626] shadow-[0_0_15px_rgba(156,255,147,0.1)]">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold font-['Space_Grotesk'] tracking-tighter text-[#9cff93]">SUI_HUMAN</span>
+<nav class="hidden md:flex gap-6 font-['JetBrains_Mono'] uppercase tracking-widest text-xs">
+<a class="text-[#9cff93] border-b-2 border-[#9cff93] pb-1" href="#">VERIFY</a>
+<a class="text-[#6ad6ff] opacity-70 hover:text-[#9cff93] hover:bg-[#131313] transition-all steps-4" href="#">NETWORK</a>
+<a class="text-[#6ad6ff] opacity-70 hover:text-[#9cff93] hover:bg-[#131313] transition-all steps-4" href="#">DOCS</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex gap-2">
+<button class="material-symbols-outlined text-[#6ad6ff] p-2 hover:bg-[#201f1f] transition-colors">terminal</button>
+<button class="material-symbols-outlined text-[#6ad6ff] p-2 hover:bg-[#201f1f] transition-colors">settings</button>
+</div>
+<button class="bg-primary text-on-primary px-4 py-1.5 font-bold text-xs font-['JetBrains_Mono'] uppercase tracking-tighter active:scale-95 transition-transform">
+                CONNECT_WALLET
+            </button>
+</div>
+</header>
+<!-- SideNavBar (Visible on Tablet/Web) -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 flex flex-col justify-between py-8 bg-[#131313] border-r border-[#262626] hidden md:flex z-40">
+<div class="space-y-1">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 bg-surface-container-highest border border-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm">person</span>
+</div>
+<div>
+<p class="font-['Space_Grotesk'] font-black text-[#9cff93] text-sm">OPERATOR_01</p>
+<p class="text-[9px] text-primary/60 tracking-widest">STATUS: ENCRYPTED</p>
+</div>
+</div>
+</div>
+<nav class="font-['JetBrains_Mono'] text-[10px] uppercase">
+<a class="text-[#a8a8a8] px-4 py-3 flex items-center gap-3 opacity-60 hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-lg">data_object</span> TERMINAL
+                </a>
+<a class="bg-[#201f1f] text-[#9cff93] border-l-4 border-[#9cff93] px-4 py-3 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-lg">face</span> LIVENESS
+                </a>
+<a class="text-[#a8a8a8] px-4 py-3 flex items-center gap-3 opacity-60 hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-lg">fingerprint</span> SBT_VAULT
+                </a>
+<a class="text-[#a8a8a8] px-4 py-3 flex items-center gap-3 opacity-60 hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-lg">hub</span> NODES
+                </a>
+<a class="text-[#a8a8a8] px-4 py-3 flex items-center gap-3 opacity-60 hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-lg">account_balance</span> GOVERNANCE
+                </a>
+</nav>
+</div>
+<div class="px-4">
+<button class="w-full bg-primary/10 border border-primary text-primary py-3 mb-8 font-bold text-[10px] hover:bg-primary hover:text-on-primary transition-all">
+                INITIATE_SCAN
+            </button>
+<div class="border-t border-[#262626] pt-4 space-y-1">
+<a class="text-[#a8a8a8] px-2 py-2 flex items-center gap-3 opacity-60 text-[10px] hover:text-error transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">logout</span> LOGOUT
+                </a>
+<a class="text-[#a8a8a8] px-2 py-2 flex items-center gap-3 opacity-60 text-[10px] hover:text-tertiary transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">help_center</span> SUPPORT
+                </a>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="md:ml-64 mt-16 p-4 md:p-8 h-[calc(100vh-64px)] overflow-y-auto bg-surface relative">
+<div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Header Section -->
+<section class="lg:col-span-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-primary/10 pb-6">
+<div>
+<span class="text-primary text-[10px] tracking-[0.3em] font-bold block mb-2 uppercase">MISSION_PROTOCOL: 0x882</span>
+<h1 class="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-none italic">
+                        Human_<span class="text-primary">Verification</span>
+</h1>
+</div>
+<div class="bg-surface-container-high px-4 py-2 flex items-center gap-4 border-l-2 border-primary">
+<div class="flex flex-col">
+<span class="text-[9px] opacity-50 uppercase">Network_Load</span>
+<span class="text-xs font-bold text-tertiary">LOW_LATENCY</span>
+</div>
+<div class="w-12 h-6 flex items-end gap-0.5">
+<div class="bg-primary/40 w-full h-1/3"></div>
+<div class="bg-primary/40 w-full h-2/3"></div>
+<div class="bg-primary w-full h-full"></div>
+<div class="bg-primary w-full h-4/5"></div>
+</div>
+</div>
+</section>
+<!-- Prominent Webcam Interface (Centerpiece) -->
+<section class="lg:col-span-8 space-y-6">
+<div class="relative bg-black aspect-video overflow-hidden border border-primary/20 group">
+<!-- Scanner UI Elements -->
+<div class="absolute inset-0 z-10 pointer-events-none border-[20px] border-surface opacity-60"></div>
+<div class="absolute top-4 left-4 z-20 flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-error animate-pulse"></span>
+<span class="text-[10px] text-white font-bold tracking-widest uppercase">Live_Feed_01</span>
+</div>
+<span class="text-[9px] text-primary/80">30_FPS // 1080P // ENCRYPTED</span>
+</div>
+<div class="absolute inset-0 z-10 pointer-events-none">
+<!-- Corners -->
+<div class="absolute top-8 left-8 w-12 h-12 border-t-2 border-l-2 border-primary"></div>
+<div class="absolute top-8 right-8 w-12 h-12 border-t-2 border-right-2 border-primary border-r-2"></div>
+<div class="absolute bottom-8 left-8 w-12 h-12 border-b-2 border-l-2 border-primary"></div>
+<div class="absolute bottom-8 right-8 w-12 h-12 border-b-2 border-r-2 border-primary"></div>
+<!-- Crosshair -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-primary/20 flex items-center justify-center">
+<div class="w-1 h-8 bg-primary/40"></div>
+<div class="h-1 w-8 bg-primary/40 absolute"></div>
+</div>
+</div>
+<img alt="Cyberpunk workspace" class="w-full h-full object-cover grayscale brightness-75 contrast-125" data-alt="Cinematic close-up of a human eye and part of a face reflected in a high-tech monitor with glowing data codes and green terminal interfaces" src="https://lh3.googleusercontent.com/aida-public/AB6AXuABZ-ZCLB9lwEYdO5c4_PAT6Qpmxkm9t-u0z_Lbv5Ursu2ucDM5AZCBjrSmJ1HDTInHFUPwLQI2QOWs4w2FeAaGkRa9xCKnrYYJKPuxNUJBYUBPsY1zcccPBC0S62kmxozzFgV80ocEwb0H-0Z4LaH4oXjv7uqgDTdF7ixSqnS7MP-KCTYSwKrzDMySgRj7G-TaftZV2471B9kUswN4rb8c31BQuz03dnHTwcdkdp0DkgCDC7ODr-oAnBSaxaiEu53pXLhu9mcNR-w"/>
+<div class="absolute bottom-4 left-0 right-0 z-20 px-12 flex justify-between items-center">
+<div class="text-[9px] font-bold text-primary">SCAN_PROGRESS: 44%</div>
+<div class="w-64 h-1 bg-surface-container-highest">
+<div class="h-full bg-primary w-[44%] shadow-[0_0_8px_#9cff93]"></div>
+</div>
+</div>
+</div>
+<!-- Action Controls -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<button class="bg-surface-container-high p-4 flex flex-col items-center gap-2 hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-primary">photo_camera</span>
+<span class="text-[9px] uppercase font-bold tracking-widest">Capture</span>
+</button>
+<button class="bg-surface-container-high p-4 flex flex-col items-center gap-2 hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-primary">refresh</span>
+<span class="text-[9px] uppercase font-bold tracking-widest">Recalibrate</span>
+</button>
+<button class="bg-surface-container-high p-4 flex flex-col items-center gap-2 border-b-2 border-primary">
+<span class="material-symbols-outlined text-primary">psychology</span>
+<span class="text-[9px] uppercase font-bold tracking-widest">Liveness_Check</span>
+</button>
+<button class="bg-surface-container-high p-4 flex flex-col items-center gap-2 hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-error">dangerous</span>
+<span class="text-[9px] uppercase font-bold tracking-widest">Terminate</span>
+</button>
+</div>
+</section>
+<!-- Telemetry and Logs (Side Panels) -->
+<section class="lg:col-span-4 space-y-6">
+<!-- Biometric Telemetry -->
+<div class="bg-surface-container-low border border-primary/10 p-6">
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+<span class="w-2 h-2 bg-primary"></span> Telemetry
+                        </h2>
+<span class="text-[10px] text-primary opacity-50 uppercase">Real_Time</span>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-end border-b border-primary/5 pb-2">
+<span class="text-[10px] opacity-60 uppercase italic">Pupil_Dilation</span>
+<span class="text-lg font-bold text-tertiary tracking-tighter">0.44mm</span>
+</div>
+<div class="flex justify-between items-end border-b border-primary/5 pb-2">
+<span class="text-[10px] opacity-60 uppercase italic">Pulse_Sync</span>
+<span class="text-lg font-bold text-primary tracking-tighter">72_BPM</span>
+</div>
+<div class="flex justify-between items-end border-b border-primary/5 pb-2">
+<span class="text-[10px] opacity-60 uppercase italic">Skin_Reflectance</span>
+<span class="text-lg font-bold text-primary-dim tracking-tighter">VALID</span>
+</div>
+<div class="pt-4 h-24 flex items-end justify-between gap-1">
+<div class="w-4 bg-tertiary/20 h-1/2"></div>
+<div class="w-4 bg-tertiary/20 h-1/3"></div>
+<div class="w-4 bg-tertiary/40 h-2/3"></div>
+<div class="w-4 bg-tertiary/60 h-4/5"></div>
+<div class="w-4 bg-tertiary/80 h-full"></div>
+<div class="w-4 bg-tertiary h-3/4"></div>
+</div>
+</div>
+</div>
+<!-- System Logs -->
+<div class="bg-surface-container-low p-6 h-80 flex flex-col">
+<div class="flex justify-between items-center mb-4">
+<h2 class="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-sm">terminal</span> Console_Logs
+                        </h2>
+</div>
+<div class="flex-1 font-mono text-[9px] space-y-2 overflow-y-auto pr-2 scrollbar-hide">
+<p class="text-primary/70">[14:02:11] INITIALIZING CAMERA_DAEMON...</p>
+<p class="text-primary/70">[14:02:12] REQUESTING SUI_WALLET_HANDSHAKE...</p>
+<p class="text-[#6ad6ff]">[14:02:13] HANDSHAKE SUCCESS: 0x82...f9e</p>
+<p class="text-primary/70">[14:02:15] STARTING LIVENESS_ENGINE v2.0</p>
+<p class="text-primary/70">[14:02:16] FACE DETECTED: CONFIDENCE 99.2%</p>
+<p class="text-primary/70">[14:02:18] DEPTH_SENSOR MAP GENERATED</p>
+<p class="text-error animate-pulse">[14:02:21] WARNING: UNRECOGNIZED GLARE DETECTED</p>
+<p class="text-primary/70">[14:02:22] ADJUSTING SENSOR SENSITIVITY...</p>
+<p class="text-primary/70">[14:02:24] SCANNING FACIAL BIOMETRICS...</p>
+<p class="text-[#00fc40] font-bold">[14:02:25] BUFFER_READY: WAITING FOR USER INPUT</p>
+<p class="text-primary/40 italic">_ blinking cursor</p>
+</div>
+</div>
+</section>
+<!-- Bottom Data Cluster -->
+<section class="lg:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="bg-surface-container-high p-6 flex items-start gap-4">
+<span class="material-symbols-outlined text-primary text-3xl">verified_user</span>
+<div>
+<p class="text-[10px] opacity-50 uppercase mb-1">Humanity_Score</p>
+<p class="text-2xl font-black text-primary font-['Space_Grotesk']">A++_CERTIFIED</p>
+</div>
+</div>
+<div class="bg-surface-container-high p-6 flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary text-3xl">shield</span>
+<div>
+<p class="text-[10px] opacity-50 uppercase mb-1">Privacy_Layer</p>
+<p class="text-2xl font-black text-tertiary font-['Space_Grotesk']">ZERO_KNOWLEDGE</p>
+</div>
+</div>
+<div class="bg-surface-container-high p-6 flex items-start gap-4">
+<span class="material-symbols-outlined text-error text-3xl">database</span>
+<div>
+<p class="text-[10px] opacity-50 uppercase mb-1">SBT_Status</p>
+<p class="text-2xl font-black text-error font-['Space_Grotesk']">NOT_MINTED</p>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Tablet Navigation (Bottom NavBar for Mobile/Tablet context) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full bg-[#131313] border-t border-[#262626] h-16 flex justify-around items-center z-50">
+<button class="flex flex-col items-center text-[#9cff93]">
+<span class="material-symbols-outlined">face</span>
+<span class="text-[8px] uppercase">Verify</span>
+</button>
+<button class="flex flex-col items-center text-[#a8a8a8] opacity-60">
+<span class="material-symbols-outlined">fingerprint</span>
+<span class="text-[8px] uppercase">Vault</span>
+</button>
+<button class="flex flex-col items-center text-[#a8a8a8] opacity-60">
+<span class="material-symbols-outlined">hub</span>
+<span class="text-[8px] uppercase">Nodes</span>
+</button>
+<button class="flex flex-col items-center text-[#a8a8a8] opacity-60">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[8px] uppercase">Config</span>
+</button>
+</nav>
+<!-- Contextual FAB (Only on specific verification states) -->
+<button class="fixed bottom-24 right-8 w-16 h-16 bg-primary text-on-primary flex items-center justify-center shadow-[0_0_20px_#9cff9355] hover:scale-110 active:scale-90 transition-all z-50 md:bottom-8">
+<span class="material-symbols-outlined font-bold" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
+</button>
+</body></html>

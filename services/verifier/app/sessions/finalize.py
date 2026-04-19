@@ -347,7 +347,15 @@ def _categorize_failure_reason(failure_reason: str | None) -> str:
         return "non_human_face"
     if failure_reason == "deepfake_unavailable":
         return "deepfake_unavailable"
-    if failure_reason in {"mint_failed", "confidence_below_threshold", "session_not_verified"}:
+    if failure_reason in {
+        "mint_failed",
+        "renew_failed",
+        "confidence_below_threshold",
+        "session_not_verified",
+        "evidence_encrypt_failed",
+        "evidence_store_failed",
+        "active_proof_lookup_failed",
+    }:
         return "proof_mint_failure"
     if failure_reason:
         return "verification_failure"

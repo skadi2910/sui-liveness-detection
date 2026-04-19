@@ -6,9 +6,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "seal:encrypt": "node scripts/seal-encrypt.mjs",
+    "start": "next start",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@mysten/dapp-kit-react": "^2.0.1",
+    "@mysten/seal": "^1.1.1",
+    "@mysten/sui": "^2.16.0",
     "@sui-human/shared": "file:../../packages/shared",
     "@tensorflow-models/face-detection": "^1.0.3",
     "@tensorflow-models/face-landmarks-detection": "^1.0.6",
@@ -24,6 +29,10 @@
     "@types/node": "^22.15.18",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.5",
-    "typescript": "^5.8.3"
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.10",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.4"
   }
 }

@@ -1,0 +1,8 @@
+[package]
+name = "proof_of_human"
+edition = "2024.beta"
+
+[dependencies]
+
+[addresses]
+proof_of_human = "0x0"

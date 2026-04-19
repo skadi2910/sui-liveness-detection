@@ -149,15 +149,27 @@ class HumanFaceEvaluation:
 
 @dataclass(slots=True)
 class EvidenceBlob:
+    evidence_schema_version: int
     session_id: str
     wallet_address: str
     challenge_type: ChallengeType
+    challenge_sequence: list[str]
+    session_started_at: str
+    session_completed_at: str
     frame_hashes: list[str]
     landmark_snapshot: dict[str, Any]
     spoof_score_summary: dict[str, float]
     model_hashes: dict[str, str]
     captured_at: str
+    landmark_trace_summary: dict[str, Any] = field(default_factory=dict)
+    antispoof_summary: dict[str, Any] = field(default_factory=dict)
+    human_face_summary: dict[str, Any] = field(default_factory=dict)
+    quality_summary: dict[str, Any] = field(default_factory=dict)
+    deepfake_summary: dict[str, Any] = field(default_factory=dict)
+    verification_context: dict[str, Any] = field(default_factory=dict)
     challenge_summary: dict[str, Any] = field(default_factory=dict)
+    attack_analysis: dict[str, Any] = field(default_factory=dict)
+    verdict_context: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -170,6 +182,14 @@ class VerificationResult:
     confidence: float
     spoof_score: float
     proof_id: str | None = None
+    transaction_digest: str | None = None
+    proof_operation: str | None = None
+    chain_network: str | None = None
+    walrus_blob_id: str | None = None
+    walrus_blob_object_id: str | None = None
+    seal_identity: str | None = None
+    evidence_schema_version: int | None = None
+    model_hash: str | None = None
     blob_id: str | None = None
     expires_at: str | None = None
     evidence: EvidenceBlob | None = None

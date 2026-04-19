@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SUI_HUMAN - Sovereign Console</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=JetBrains+Mono:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-bright": "#fdfdfd",
+                    "surface": "#f9f9f9",
+                    "inverse-primary": "#0055ff",
+                    "on-primary-container": "#001b50",
+                    "surface-variant": "#e2e2e2",
+                    "error": "#d32f2f",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "on-error-container": "#410002",
+                    "primary-fixed-dim": "#4d8dff",
+                    "on-primary": "#ffffff",
+                    "error-dim": "#ffb4ab",
+                    "tertiary-fixed": "#00677d",
+                    "surface-container": "#f3f3f3",
+                    "background": "#f9f9f9",
+                    "on-surface-variant": "#44474e",
+                    "on-tertiary-fixed": "#ffffff",
+                    "surface-container-high": "#e8e8e8",
+                    "on-secondary": "#ffffff",
+                    "tertiary-dim": "#56d6f5",
+                    "on-error": "#ffffff",
+                    "inverse-on-surface": "#f1f0f4",
+                    "error-container": "#f9dedc",
+                    "secondary-fixed": "#e2e2e6",
+                    "surface-container-low": "#f7f7f7",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-fixed-variant": "#0041c8",
+                    "primary": "#0055ff",
+                    "on-primary-fixed": "#001b50",
+                    "primary-dim": "#0055ff",
+                    "tertiary-container": "#afedff",
+                    "secondary-fixed-dim": "#c6c6ca",
+                    "on-secondary-container": "#1a1c1e",
+                    "secondary": "#5d5e62",
+                    "surface-container-lowest": "#ffffff",
+                    "inverse-surface": "#2f3033",
+                    "tertiary-fixed-dim": "#56d6f5",
+                    "on-surface": "#1a1c1c",
+                    "outline": "#74777f",
+                    "surface-dim": "#dedada",
+                    "on-background": "#1a1c1c",
+                    "secondary-dim": "#c6c6ca",
+                    "primary-fixed": "#d8e2ff",
+                    "secondary-container": "#e2e2e6",
+                    "on-tertiary-fixed-variant": "#004e5f",
+                    "tertiary": "#00677d",
+                    "on-tertiary-container": "#001f28",
+                    "surface-container-highest": "#e2e2e2",
+                    "outline-variant": "#c4c6d0",
+                    "primary-container": "#d8e2ff",
+                    "on-secondary-fixed-variant": "#45474a",
+                    "surface-tint": "#0055ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "4px",
+                    "lg": "8px",
+                    "xl": "12px",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Space Grotesk"],
+                    "body": ["JetBrains Mono"],
+                    "label": ["JetBrains Mono"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #f9f9f9;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: crosshair;
+        }
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.02) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.01), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.01));
+            z-index: 9999;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+        .glitch-effect:active {
+            transform: scale(0.98);
+            filter: hue-rotate(45deg);
+        }
+        .scanline-y {
+            width: 100%;
+            height: 2px;
+            background: #0055ff;
+            opacity: 0.3;
+            position: absolute;
+            top: 0;
+            animation: scan 4s linear infinite;
+        }
+        @keyframes scan {
+            0% { top: 0%; }
+            100% { top: 100%; }
+        }
+        .webcam-high-contrast {
+            background-color: #0e0e0e;
+        }
+    </style>
+</head>
+<body class="text-on-surface overflow-hidden">
+<div class="crt-overlay"></div>
+<!-- TopNavBar from COMPONENTS_8 -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-8 h-16 bg-[#f9f9f9] border-b-2 border-[#e2e2e2] flat no-shadows">
+<div class="text-xl font-bold tracking-tighter text-[#1a1c1c] font-['Space_Grotesk']">SUI_HUMAN</div>
+<nav class="hidden md:flex gap-8">
+<a class="text-[#0041c8] border-b-2 border-[#0041c8] pb-1 font-['Space_Grotesk'] tracking-tight text-sm uppercase hover:opacity-100 transition-colors" href="#">VERIFY</a>
+<a class="text-[#1a1c1c] opacity-70 font-['Space_Grotesk'] tracking-tight text-sm uppercase hover:opacity-100 hover:text-[#0041c8] transition-colors" href="#">NETWORK</a>
+<a class="text-[#1a1c1c] opacity-70 font-['Space_Grotesk'] tracking-tight text-sm uppercase hover:opacity-100 hover:text-[#0041c8] transition-colors" href="#">DOCS</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[#0041c8] hover:bg-[#e2e2e2] p-2 transition-all rounded">terminal</button>
+<button class="material-symbols-outlined text-[#0041c8] hover:bg-[#e2e2e2] p-2 transition-all rounded">settings</button>
+<button class="bg-[#0055ff] text-white px-4 py-1 font-bold text-xs font-['JetBrains_Mono'] glitch-effect rounded-sm">CONNECT_WALLET</button>
+</div>
+</header>
+<div class="flex pt-16 h-screen">
+<!-- SideNavBar from COMPONENTS_8 -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 flex flex-col py-6 bg-[#f3f3f3] border-r border-[#e2e2e2] font-['Space_Grotesk'] text-xs font-medium tracking-widest uppercase">
+<div class="flex flex-col flex-1">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 bg-[#e2e2e2] border border-[#0041c8] flex items-center justify-center rounded-sm">
+<span class="material-symbols-outlined text-[#0041c8] text-sm" style="font-variation-settings: 'FILL' 1;">person</span>
+</div>
+<div>
+<div class="font-['Space_Grotesk'] font-black text-[#1a1c1c] text-sm">OPERATOR_01</div>
+<div class="text-[#0041c8] opacity-60 text-[8px]">IDENTITY_VERIFIED</div>
+</div>
+</div>
+</div>
+<nav class="flex flex-col gap-2">
+<a class="text-[#0041c8] bg-[#e2e2e2] border-l-4 border-[#0041c8] px-6 py-4 flex items-center gap-3 transition-all" href="#">
+<span class="material-symbols-outlined text-sm">terminal</span>
+<span>TERMINAL</span>
+</a>
+<a class="text-[#1a1c1c] opacity-60 px-6 py-4 flex items-center gap-3 hover:bg-[#e2e2e2] hover:opacity-100 transition-all" href="#">
+<span class="material-symbols-outlined text-sm">face</span>
+<span>LIVENESS</span>
+</a>
+<a class="text-[#1a1c1c] opacity-60 px-6 py-4 flex items-center gap-3 hover:bg-[#e2e2e2] hover:opacity-100 transition-all" href="#">
+<span class="material-symbols-outlined text-sm">verified_user</span>
+<span>SBT_VAULT</span>
+</a>
+<a class="text-[#1a1c1c] opacity-60 px-6 py-4 flex items-center gap-3 hover:bg-[#e2e2e2] hover:opacity-100 transition-all" href="#">
+<span class="material-symbols-outlined text-sm">account_tree</span>
+<span>NODES</span>
+</a>
+<a class="text-[#1a1c1c] opacity-60 px-6 py-4 flex items-center gap-3 hover:bg-[#e2e2e2] hover:opacity-100 transition-all" href="#">
+<span class="material-symbols-outlined text-sm">account_balance</span>
+<span>GOVERNANCE</span>
+</a>
+</nav>
+</div>
+<div class="flex flex-col gap-2">
+<div class="px-6 mb-4">
+<button class="w-full py-3 bg-[#e2e2e2] border border-[#0041c8]/30 text-[#0041c8] text-center font-bold tracking-widest hover:bg-[#0041c8] hover:text-white transition-all glitch-effect rounded-sm text-[10px]">
+                        INITIATE_SCAN
+                    </button>
+</div>
+<div class="flex flex-col">
+<a class="text-[#1a1c1c] px-6 py-2 flex items-center gap-3 opacity-60 hover:text-error transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">logout</span>
+<span>LOGOUT</span>
+</a>
+<a class="text-[#1a1c1c] px-6 py-2 flex items-center gap-3 opacity-60 hover:text-[#0041c8] transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">help_center</span>
+<span>SUPPORT</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-64 flex-1 bg-surface grid grid-cols-12 overflow-hidden">
+<!-- Center Verification Area -->
+<div class="col-span-12 lg:col-span-8 p-12 flex flex-col items-center justify-center border-r border-[#e2e2e2] relative">
+<div class="absolute top-8 left-8">
+<div class="text-[10px] text-[#0041c8] font-bold mb-1 font-['JetBrains_Mono']">SYSTEM_MODULE_07</div>
+<div class="h-1 w-24 bg-[#e2e2e2] relative overflow-hidden rounded-full">
+<div class="absolute inset-0 bg-[#0055ff] w-2/3"></div>
+</div>
+</div>
+<!-- Webcam Feed Container (High Contrast Preserved) -->
+<div class="relative w-full max-w-2xl aspect-video bg-[#000000] border border-[#0041c8]/40 p-2 overflow-hidden group shadow-xl">
+<div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#0055ff] z-10"></div>
+<div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#0055ff] z-10"></div>
+<div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#0055ff] z-10"></div>
+<div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[#0055ff] z-10"></div>
+<div class="scanline-y"></div>
+<div class="w-full h-full bg-[#0a0a0a] relative overflow-hidden flex items-center justify-center">
+<img class="w-full h-full object-cover grayscale opacity-50 mix-blend-screen" data-alt="Monochrome cinematic portrait of a person in a dark room with technical UI overlays and scanning lines" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAm0EXFqLM8UdhGTpsdsFewHjTl6qs_EJjnjRJ5T1vaBiCOAtyPHxDLH_lPH86cKuhviSQ7V5bQcG39xgIUABPys0P2S1V_9VNiFaB0nhoF1wTv6NNL3kOwphwP1GAlcWwqsrDvTvbh0O77ITIjiWYL5n1wqNGXZHyclQwghEDQzxxOWGtxk0jpZMDnwzu0_p6Ym29399Yh9sVMLljOZHT5UeFZD2ueRC_bbbS6I3Ak6HXofeEPVY8PWFjv0cW8fODV015F5RLDPuA"/>
+<!-- Face Mesh Overlay -->
+<div class="absolute inset-0 flex items-center justify-center opacity-40 pointer-events-none">
+<svg class="w-2/3 h-2/3 text-[#0055ff]" viewbox="0 0 100 100">
+<path d="M50 20 C 35 20 25 35 25 50 C 25 70 35 85 50 85 C 65 85 75 70 75 50 C 75 35 65 20 50 20" fill="none" stroke="currentColor" stroke-dasharray="2 2" stroke-width="0.5"></path>
+<circle cx="40" cy="45" fill="currentColor" r="2"></circle>
+<circle cx="60" cy="45" fill="currentColor" r="2"></circle>
+<path d="M40 65 Q 50 70 60 65" fill="none" stroke="currentColor" stroke-width="1"></path>
+</svg>
+</div>
+<!-- Data HUD -->
+<div class="absolute bottom-4 left-4 text-[8px] text-[#0055ff] uppercase font-bold bg-black/80 p-2 backdrop-blur-sm border border-[#0041c8]/30">
+<div class="mb-1">LATENCY: 14MS</div>
+<div class="mb-1">FPS: 60.00</div>
+<div>RESOLUTION: 1080P</div>
+</div>
+</div>
+</div>
+<div class="mt-12 flex flex-col items-center">
+<div class="text-center mb-8">
+<h1 class="font-headline font-black text-4xl text-[#1a1c1c] tracking-tight uppercase mb-2">IDENTITY_ATTESTATION</h1>
+<p class="text-[#44474e] text-xs font-['JetBrains_Mono'] max-w-md mx-auto leading-relaxed opacity-80">
+                            POSITION YOURSELF WITHIN THE BOUNDS OF THE SCANNER. ENSURE NEUTRAL LIGHTING FOR OPTIMAL BIOMETRIC HASH GENERATION.
+                        </p>
+</div>
+<button class="group relative px-12 py-5 bg-[#0055ff] text-white font-bold tracking-[0.2em] uppercase text-sm glitch-effect transition-all overflow-hidden rounded-sm shadow-lg hover:shadow-[#0055ff]/20">
+<span class="relative z-10">VERIFY_IDENTITY</span>
+<div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity"></div>
+</button>
+<div class="mt-6 flex items-center gap-4 text-[10px] text-[#00677d] font-bold">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-[#00677d] rounded-full"></span>
+                            PROTOCOL_ACTIVE
+                        </div>
+<div class="flex items-center gap-1 opacity-50">
+<span class="w-1.5 h-1.5 bg-[#74777f] rounded-full"></span>
+                            ZERO_KNOWLEDGE_PROOF
+                        </div>
+</div>
+</div>
+</div>
+<!-- Telemetry & Logs Sidebar (Light Theme) -->
+<div class="hidden lg:flex lg:col-span-4 bg-[#f7f7f7] flex-col">
+<div class="p-6 border-b border-[#e2e2e2]">
+<div class="text-[10px] text-[#0041c8] font-bold mb-4 flex justify-between font-['JetBrains_Mono']">
+<span>LIVE_TELEMETRY</span>
+<span class="animate-pulse">●</span>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-[9px] mb-1">
+<span class="text-[#44474e] font-bold">CPU_LOAD</span>
+<span class="text-[#0055ff] font-bold">42%</span>
+</div>
+<div class="h-1 bg-[#e8e8e8] w-full rounded-full overflow-hidden">
+<div class="h-full bg-[#0055ff] w-[42%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-[9px] mb-1">
+<span class="text-[#44474e] font-bold">HASH_RATE</span>
+<span class="text-[#00677d] font-bold">1.4GH/S</span>
+</div>
+<div class="h-1 bg-[#e8e8e8] w-full rounded-full overflow-hidden">
+<div class="h-full bg-[#00677d] w-[78%]"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex-1 p-6 font-['JetBrains_Mono'] overflow-hidden flex flex-col">
+<div class="text-[10px] text-[#1a1c1c] font-bold mb-4 uppercase tracking-tighter">SYSTEM_LOGS</div>
+<div class="text-[9px] text-[#44474e] space-y-2 overflow-y-auto">
+<div class="flex gap-2">
+<span class="text-[#74777f]">[09:24:01]</span>
+<span class="text-[#1a1c1c] font-bold">BOOT_SEQUENCE_INITIALIZED</span>
+</div>
+<div class="flex gap-2">
+<span class="text-[#74777f]">[09:24:02]</span>
+<span>PEER_NETWORK_CONNECTED: 4,921 NODES</span>
+</div>
+<div class="flex gap-2">
+<span class="text-[#74777f]">[09:24:05]</span>
+<span>BIOMETRIC_INTERFACE_ACTIVE</span>
+</div>
+<div class="flex gap-2">
+<span class="text-[#74777f]">[09:24:08]</span>
+<span class="text-[#00677d] font-bold">ENCRYPTED_HANDSHAKE_COMPLETE</span>
+</div>
+<div class="flex gap-2">
+<span class="text-[#74777f]">[09:24:12]</span>
+<span class="italic opacity-60">AWAITING_INPUT...</span>
+</div>
+<div class="flex gap-2">
+<span class="text-[#74777f]">[09:25:01]</span>
+<span class="text-error font-bold">ERROR: AMBIENT_LIGHT_LEVEL_LOW</span>
+</div>
+<div class="flex gap-2">
+<span class="text-[#74777f]">[09:25:05]</span>
+<span>ADJUSTING_EXPOSURE_VALS...</span>
+</div>
+<div class="flex gap-2">
+<span class="text-[#74777f]">[09:25:10]</span>
+<span class="text-[#0055ff] font-bold">SIGNAL_STRENGTH_NOMINAL</span>
+</div>
+<div class="flex gap-2">
+<span class="text-[#74777f]">[09:25:15]</span>
+<span>TRACKING_EYE_MOVEMENT: OK</span>
+</div>
+<div class="flex gap-2">
+<span class="text-[#74777f]">[09:25:18]</span>
+<span>BLOOD_OXYGEN_DETECTION: STABLE</span>
+</div>
+<div class="flex gap-2">
+<span class="text-[#74777f]">[09:25:22]</span>
+<span class="text-[#1a1c1c] font-bold">CHALLENGE_VECTOR_GENERATED</span>
+</div>
+</div>
+<div class="mt-auto pt-6 border-t border-[#e2e2e2]">
+<div class="bg-white p-4 border-l-2 border-[#00677d] shadow-sm">
+<div class="text-[9px] text-[#44474e] mb-2 font-bold">QUICK_STATS</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<div class="text-xs font-bold text-[#1a1c1c]">4.8k</div>
+<div class="text-[8px] text-[#74777f]">ATTESTATIONS</div>
+</div>
+<div>
+<div class="text-xs font-bold text-[#1a1c1c]">99.9%</div>
+<div class="text-[8px] text-[#74777f]">RELIABILITY</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Background Elements (Subtle Radiant Effect) -->
+<div class="fixed top-0 right-0 w-full h-full pointer-events-none opacity-5">
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,#0055ff_0%,transparent_50%)]"></div>
+</div>
+</body></html>

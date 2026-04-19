@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SUI_HUMAN | MISSION_PROFILE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&amp;family=Space+Grotesk:wght@300;400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#2c2c2c",
+                        "surface": "#0e0e0e",
+                        "inverse-primary": "#006f16",
+                        "on-primary-container": "#005a10",
+                        "surface-variant": "#262626",
+                        "error": "#ff7351",
+                        "on-secondary-fixed": "#403f3f",
+                        "on-error-container": "#ffd2c8",
+                        "primary-fixed-dim": "#00ec3b",
+                        "on-primary": "#006413",
+                        "error-dim": "#d53d18",
+                        "tertiary-fixed": "#00cbfe",
+                        "surface-container": "#1a1919",
+                        "background": "#0e0e0e",
+                        "on-surface-variant": "#adaaaa",
+                        "on-tertiary-fixed": "#002733",
+                        "surface-container-high": "#201f1f",
+                        "on-secondary": "#525151",
+                        "tertiary-dim": "#00bcec",
+                        "on-error": "#450900",
+                        "inverse-on-surface": "#565554",
+                        "error-container": "#b92902",
+                        "secondary-fixed": "#e5e2e1",
+                        "surface-container-low": "#131313",
+                        "on-tertiary": "#00485c",
+                        "on-primary-fixed-variant": "#006513",
+                        "primary": "#9cff93",
+                        "on-primary-fixed": "#00440a",
+                        "primary-dim": "#00ec3b",
+                        "tertiary-container": "#00cbfe",
+                        "secondary-fixed-dim": "#d7d4d3",
+                        "on-secondary-container": "#d2d0cf",
+                        "secondary": "#e5e2e1",
+                        "surface-container-lowest": "#000000",
+                        "inverse-surface": "#fcf8f8",
+                        "tertiary-fixed-dim": "#00bcec",
+                        "on-surface": "#ffffff",
+                        "outline": "#777575",
+                        "surface-dim": "#0e0e0e",
+                        "on-background": "#ffffff",
+                        "secondary-dim": "#d7d4d3",
+                        "primary-fixed": "#00fc40",
+                        "secondary-container": "#474646",
+                        "on-tertiary-fixed-variant": "#00485b",
+                        "tertiary": "#6ad6ff",
+                        "on-tertiary-container": "#003e50",
+                        "surface-container-highest": "#262626",
+                        "outline-variant": "#494847",
+                        "primary-container": "#00fc40",
+                        "on-secondary-fixed-variant": "#5c5b5b",
+                        "surface-tint": "#9cff93"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0px",
+                        "lg": "0px",
+                        "xl": "0px",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "body": ["JetBrains Mono", "monospace"],
+                        "label": ["JetBrains Mono", "monospace"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .crt-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .scale-98-on-click-glitch-effect:active {
+            transform: scale(0.98);
+            filter: hue-rotate(90deg);
+        }
+        .cursor-terminal-blink {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='20'><rect width='10' height='20' fill='%239cff93' /></svg>"), auto;
+        }
+        ::selection {
+            background: #9cff93;
+            color: #006413;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body cursor-terminal-blink overflow-x-hidden">
+<div class="crt-overlay"></div>
+<!-- TopNavBar -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-[#0e0e0e] dark:bg-[#0e0e0e] border-b border-[#262626] shadow-[0_0_15px_rgba(156,255,147,0.1)]">
+<div class="text-xl font-bold font-['Space_Grotesk'] tracking-tighter text-[#9cff93]">SUI_HUMAN</div>
+<div class="hidden md:flex items-center space-x-8">
+<a class="font-['JetBrains_Mono'] uppercase tracking-widest text-xs text-[#6ad6ff] opacity-70 hover:text-[#9cff93] hover:bg-[#131313] transition-all steps-4 p-1" href="#">VERIFY</a>
+<a class="font-['JetBrains_Mono'] uppercase tracking-widest text-xs text-[#6ad6ff] opacity-70 hover:text-[#9cff93] hover:bg-[#131313] transition-all steps-4 p-1" href="#">NETWORK</a>
+<a class="font-['JetBrains_Mono'] uppercase tracking-widest text-xs text-[#9cff93] border-b-2 border-[#9cff93] pb-1" href="#">DOCS</a>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#9cff93] cursor-pointer hover:opacity-80">terminal</span>
+<span class="material-symbols-outlined text-[#9cff93] cursor-pointer hover:opacity-80">settings</span>
+<button class="bg-[#9cff93] text-[#006413] px-4 py-1 font-['JetBrains_Mono'] uppercase text-xs font-bold scale-98-on-click-glitch-effect">CONNECT_WALLET</button>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#131313] border-r border-[#262626] flex flex-col justify-between py-8 hidden lg:flex z-40">
+<div class="flex flex-col">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 bg-surface-container-highest border border-primary overflow-hidden">
+<img alt="OPERATOR_01" class="w-full h-full object-cover grayscale brightness-75" data-alt="Cyberpunk stylized glitchy portrait of a digital operator wearing tactical visor with green HUD reflections" src="https://lh3.googleusercontent.com/aida-public/AB6AXuANdiL40Tb-tIC-w_ndbBtHHeEDBnENZ4HoQTZB5cSSW-i7YzcESCeoxpGg1IoKpD2pknuJX1m5x9W_WciYMxoFhuktZamOlcRyf0NPJdrhECIR2NSuwVESpRW1GliMLmrg3KkrXsNOo7RJEvkxPJzJhD6DNtY6yLEh7MnSK3HvR3MJPGo8zXrKLyj3c8XjTvqRclw1JCUIkYRSE7kkrhFId6AqPuxlpjwncH_kNh3_8VjdJApjKtCBsX68HJ-cAFpfYj185odol7g"/>
+</div>
+<div>
+<div class="font-['Space_Grotesk'] font-black text-[#9cff93] text-sm">OPERATOR_01</div>
+<div class="font-['JetBrains_Mono'] text-[10px] text-[#9cff93] opacity-60">STATUS: ENCRYPTED</div>
+</div>
+</div>
+</div>
+<nav class="flex flex-col">
+<a class="text-[#a8a8a8] px-6 py-3 flex items-center gap-3 opacity-60 font-['JetBrains_Mono'] text-[10px] uppercase hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm">data_object</span> TERMINAL
+                </a>
+<a class="bg-[#201f1f] text-[#9cff93] border-l-4 border-[#9cff93] px-6 py-3 flex items-center gap-3 font-['JetBrains_Mono'] text-[10px] uppercase" href="#">
+<span class="material-symbols-outlined text-sm">face</span> LIVENESS
+                </a>
+<a class="text-[#a8a8a8] px-6 py-3 flex items-center gap-3 opacity-60 font-['JetBrains_Mono'] text-[10px] uppercase hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm">fingerprint</span> SBT_VAULT
+                </a>
+<a class="text-[#a8a8a8] px-6 py-3 flex items-center gap-3 opacity-60 font-['JetBrains_Mono'] text-[10px] uppercase hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm">hub</span> NODES
+                </a>
+<a class="text-[#a8a8a8] px-6 py-3 flex items-center gap-3 opacity-60 font-['JetBrains_Mono'] text-[10px] uppercase hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm">account_balance</span> GOVERNANCE
+                </a>
+</nav>
+</div>
+<div class="px-6 flex flex-col gap-4">
+<button class="w-full bg-transparent border border-primary text-primary py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-primary/10 transition-all">INITIATE_SCAN</button>
+<div class="flex flex-col gap-2 pt-4 border-t border-outline-variant/30">
+<a class="text-[#a8a8a8] flex items-center gap-2 text-[10px] uppercase hover:text-error transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">logout</span> LOGOUT
+                </a>
+<a class="text-[#a8a8a8] flex items-center gap-2 text-[10px] uppercase hover:text-tertiary transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">help_center</span> SUPPORT
+                </a>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="pt-24 pb-20 px-6 lg:pl-72 lg:pr-12 max-w-[1600px] mx-auto min-h-screen">
+<!-- Hero Header -->
+<header class="mb-20">
+<div class="inline-block px-2 py-1 bg-primary text-on-primary text-[10px] font-bold mb-4">PROTOCOL_ORIGIN</div>
+<h1 class="font-headline text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tighter leading-none mb-6">
+                SECURE THE <span class="text-primary italic">HUMAN</span> LAYER.
+            </h1>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-end">
+<p class="font-body text-on-surface-variant max-w-xl text-lg leading-relaxed">
+                    SUI_HUMAN is the definitive identity verification primitive for the Web3 ecosystem. We utilize zero-knowledge proofs and advanced biometric hardware signals to ensure every transaction originates from a verified biological entity—without compromising digital sovereignty.
+                </p>
+<div class="flex flex-col items-end">
+<div class="text-primary text-[10px] font-bold uppercase mb-2">SYSTEM_INTEGRITY_INDEX: 99.98%</div>
+<div class="w-full h-1 bg-surface-container-highest max-w-xs relative">
+<div class="absolute top-0 left-0 h-full bg-primary w-[99.9%]"></div>
+</div>
+</div>
+</div>
+</header>
+<!-- Mission Grid -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-px bg-outline-variant/20 mb-32 border border-outline-variant/20">
+<div class="md:col-span-8 bg-surface-container-low p-8 lg:p-12">
+<h2 class="font-headline text-3xl font-bold mb-8 flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-weight="fill">verified_user</span>
+                    OUR_MISSION
+                </h2>
+<div class="space-y-6 font-body text-on-surface-variant">
+<p>In an era of generative AI and bot-saturated networks, the most valuable asset in the digital world is the proof of being human. Our mission is to build a high-integrity, decentralized firewall between humans and machines.</p>
+<p>We believe that privacy is a human right, and liveness is the ultimate credential. By leveraging the SUI network's high throughput, we enable real-time human verification for every dApp, DAO, and protocol on the chain.</p>
+</div>
+</div>
+<div class="md:col-span-4 bg-surface-container-high p-8 flex flex-col justify-between border-l border-outline-variant/20">
+<div>
+<div class="text-primary text-[10px] font-bold uppercase mb-8">NODE_LOCATIONS</div>
+<div class="aspect-square bg-surface border border-outline-variant/30 flex items-center justify-center overflow-hidden relative">
+<img alt="Global Node Distribution" class="opacity-50 grayscale contrast-150" data-alt="Abstract digital world map rendered in glowing green lines and dots on a deep black background representing node network" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeFksYXLctM03PeYFUH8PGcx2CbU1oh9RwwswErDCzbqHHL1P268G1Q8OY5b_tedThy7wnqCWjYlcbYwE7hr1PbungfvdTLViUsfnfhBbBuf_-PAxCaUhEbHdj04T6OvHkKrcdZRGq3SDcRs_Krzi7yiRe2pjkVIA7TDjzK_24ieXXGirRN4QIOXedf9vak36iTMPZpyDqPDQ1qzJnEwdzYewQXQzk_3GtjGTpf_cbJeCO9TqvpoPF-NgEtkq2uN1yY07bNODqw8I"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface to-transparent opacity-60"></div>
+</div>
+</div>
+<div class="mt-8">
+<div class="flex justify-between items-end">
+<div class="text-2xl font-headline font-bold">142</div>
+<div class="text-[10px] text-tertiary">ACTIVE_ORACLES</div>
+</div>
+</div>
+</div>
+</section>
+<!-- CORE_VALUES (Bento Grid Style) -->
+<section class="mb-32">
+<div class="flex items-center gap-4 mb-12">
+<div class="h-px bg-outline-variant grow"></div>
+<h2 class="font-headline text-2xl font-bold tracking-widest uppercase">CORE_VALUES</h2>
+<div class="h-px bg-outline-variant grow"></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Value 1 -->
+<div class="bg-surface-container-low p-6 border-t-4 border-primary group hover:bg-surface-container-high transition-all">
+<div class="text-primary mb-6 flex justify-between items-start">
+<span class="material-symbols-outlined text-4xl" data-weight="fill">security</span>
+<span class="text-[10px] font-bold opacity-30">001</span>
+</div>
+<h3 class="font-headline text-xl font-bold mb-4 uppercase tracking-tight group-hover:text-primary transition-colors">Digital_Sovereignty</h3>
+<p class="font-body text-sm text-on-surface-variant leading-relaxed">Identity is not owned by corporations or states. Your biometric data never leaves your local hardware; only ZK-proofs traverse the network.</p>
+</div>
+<!-- Value 2 -->
+<div class="bg-surface-container-low p-6 border-t-4 border-tertiary group hover:bg-surface-container-high transition-all">
+<div class="text-tertiary mb-6 flex justify-between items-start">
+<span class="material-symbols-outlined text-4xl" data-weight="fill">code</span>
+<span class="text-[10px] font-bold opacity-30">002</span>
+</div>
+<h3 class="font-headline text-xl font-bold mb-4 uppercase tracking-tight group-hover:text-tertiary transition-colors">Radical_Transparency</h3>
+<p class="font-body text-sm text-on-surface-variant leading-relaxed">Our protocol logic is open-source. Trust is verified through mathematics and code, not marketing or opaque promises.</p>
+</div>
+<!-- Value 3 -->
+<div class="bg-surface-container-low p-6 border-t-4 border-white group hover:bg-surface-container-high transition-all">
+<div class="text-white mb-6 flex justify-between items-start">
+<span class="material-symbols-outlined text-4xl" data-weight="fill">diversity_3</span>
+<span class="text-[10px] font-bold opacity-30">003</span>
+</div>
+<h3 class="font-headline text-xl font-bold mb-4 uppercase tracking-tight group-hover:text-primary transition-colors">Universal_Access</h3>
+<p class="font-body text-sm text-on-surface-variant leading-relaxed">Proof-of-Humanity must be accessible to all biological humans regardless of geography or economic status.</p>
+</div>
+</div>
+</section>
+<!-- TEAM SECTION -->
+<section class="mb-32">
+<div class="mb-12">
+<h2 class="font-headline text-4xl font-black uppercase tracking-tighter mb-2">SYSTEM_ARCHITECTS</h2>
+<div class="text-[10px] text-primary font-bold">CLEARANCE_LEVEL: OMEGA</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-px bg-outline-variant/30 border border-outline-variant/30">
+<!-- Member 1 -->
+<div class="bg-surface p-6 group hover:bg-surface-container-highest transition-all duration-300">
+<div class="aspect-[4/5] bg-surface-container-high mb-6 overflow-hidden relative">
+<img alt="ARCHITECT_01" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="Close up cinematic portrait of a woman in high-tech black tactical gear, sharp jawline, intense eyes, neon green accent lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLkBclXl4G1qix1glbY7SgwDNRG_v7S36hFmwrIiOOKyMYufXBxTx-ei5hzwIyMLWr3e3bWi2RFvwmewpsen7sj8oZguSeaGQOZo2IxmzqhpV04GpaUEjTBFifPmM6WLiVWiW5HpRR4H8PAYL6zu-Qg02BDfEWHYb2RZK5IenlE_-h9jpvm3NKAmyWDcJIU40o68Ae7dMZUJ8h52Lt6aRSr6srge9QD9q6JFk_5FnnbfAQjN4EpkRC18QPTLw86WP9LujqPZHJrR8"/>
+<div class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black to-transparent opacity-80"></div>
+<div class="absolute bottom-4 left-4 font-headline font-bold text-white uppercase text-lg leading-tight">Vera<br/>Silvas</div>
+</div>
+<div class="flex justify-between items-center text-[10px] font-bold text-primary mb-2">
+<span>LEAD_ENGINEER</span>
+<span class="opacity-30">#7721</span>
+</div>
+<div class="h-px bg-outline-variant mb-4 group-hover:bg-primary transition-colors"></div>
+<p class="text-xs text-on-surface-variant font-body leading-relaxed">Cryptography specialist. Former lead of Zero-Knowledge R&amp;D at the Sui Foundation.</p>
+</div>
+<!-- Member 2 -->
+<div class="bg-surface p-6 group hover:bg-surface-container-highest transition-all duration-300">
+<div class="aspect-[4/5] bg-surface-container-high mb-6 overflow-hidden relative">
+<img alt="ARCHITECT_02" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="Portrait of a man with short cropped hair wearing a high-collar technical jacket, illuminated by blue and green monitor glow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTTlqwQSg8ez26tv6eLAo4AF6MmrMYR-I5_fElz40p8nXJnDKqm8dvxgj9hInLhmYi_Ts2g5A9g-4qlq0BHNrTMNRsDHn-2MTtjVXN2jPxwAIfg0boJRFQlQI61rj-ytO4_e1Lk2Qc6Gq25mLR-5gJ48hiEtD9BNRAYu7ntqeA4x0YO_k7v-Aj4tFRCJRo0U4eWnxyKNvFj3l76XakouV7POqwm7L5_JfKGXr8e-ueNZF8Ke_zmdPfik-k9vkVcR9D3Zl0_eWxEjw"/>
+<div class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black to-transparent opacity-80"></div>
+<div class="absolute bottom-4 left-4 font-headline font-bold text-white uppercase text-lg leading-tight">Jax<br/>Koren</div>
+</div>
+<div class="flex justify-between items-center text-[10px] font-bold text-primary mb-2">
+<span>PROTOCOL_DESIGN</span>
+<span class="opacity-30">#1085</span>
+</div>
+<div class="h-px bg-outline-variant mb-4 group-hover:bg-primary transition-colors"></div>
+<p class="text-xs text-on-surface-variant font-body leading-relaxed">Game theory expert. Architect of the liveness incentive layer and sybil-resistance protocols.</p>
+</div>
+<!-- Member 3 -->
+<div class="bg-surface p-6 group hover:bg-surface-container-highest transition-all duration-300">
+<div class="aspect-[4/5] bg-surface-container-high mb-6 overflow-hidden relative">
+<img alt="ARCHITECT_03" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="Digital art portrait of a non-binary individual with holographic glasses, vibrant aesthetic, minimalist tech background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDU7WfaNcyR-s8KMiGo_ZM2vInKgbIOQG5q5ahk2YiQSljW3kKuIB6akydG5xjgW-uqHKWg3auSzjrJ4IJBXWYvnO5WGnVEeaZsDQAq4FTe5lRwYoCDu5LWNSKMWUxKlspGrMALAQRV7p4UBTjcHU6vYjCP3KVjTZ4Qt97LRcRp8E0jVCP8I8Ekao51sctdlxlq_Sq-TfunsXw2jLAgxuC9tLh2q2tC8d9b7NYSxT3DeYcE61EWFPEA5RuGBCZiGb8UU666UWaxEH8"/>
+<div class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black to-transparent opacity-80"></div>
+<div class="absolute bottom-4 left-4 font-headline font-bold text-white uppercase text-lg leading-tight">Miro<br/>Dax</div>
+</div>
+<div class="flex justify-between items-center text-[10px] font-bold text-primary mb-2">
+<span>SECURITY_OPERATIONS</span>
+<span class="opacity-30">#9920</span>
+</div>
+<div class="h-px bg-outline-variant mb-4 group-hover:bg-primary transition-colors"></div>
+<p class="text-xs text-on-surface-variant font-body leading-relaxed">Cyber-security researcher focusing on hardware-level attack vectors and biometric spoofing.</p>
+</div>
+<!-- Member 4 -->
+<div class="bg-surface p-6 group hover:bg-surface-container-highest transition-all duration-300">
+<div class="aspect-[4/5] bg-surface-container-high mb-6 overflow-hidden relative">
+<img alt="ARCHITECT_04" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="Portrait of a person with long braided hair wearing a sleek dark hood, backlit by a soft green circular glow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1IXjTfVMV638VZbIhpBwx-vrks5TBE-T4i7MMaFKgK73xBw4M-W6n0_dmxoXmWBL_UqElBdlhF1pC4_zW_iKebhkl9QIIoxGHIX2YIB9qMHgbyTnz-Bz4B4duM45Kvh2ZXWAnQpAbGu3sJrtmyiBvRUUkkgfYo7rA2bO8HO3xTlHsoM7NzQWHUSU_jmE7vznJJ06FhX5tmygGdi-WY1xv-NDq1pwfwRDHI6nTALPWvb47opiQtIhpd-8AhvWCzdnrQRYQzKqUYUo"/>
+<div class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black to-transparent opacity-80"></div>
+<div class="absolute bottom-4 left-4 font-headline font-bold text-white uppercase text-lg leading-tight">Nyx<br/>Wei</div>
+</div>
+<div class="flex justify-between items-center text-[10px] font-bold text-primary mb-2">
+<span>PRODUCT_STRATEGY</span>
+<span class="opacity-30">#4402</span>
+</div>
+<div class="h-px bg-outline-variant mb-4 group-hover:bg-primary transition-colors"></div>
+<p class="text-xs text-on-surface-variant font-body leading-relaxed">Ecosystem lead. Focused on building bridges between legacy identity and the decentralized future.</p>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="bg-surface-container border border-primary/20 p-8 lg:p-16 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[120px]"></div>
+<div class="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+<div>
+<h2 class="font-headline text-3xl font-bold uppercase mb-4 tracking-tighter">Ready to join the network?</h2>
+<p class="font-body text-on-surface-variant mb-8">Deploy your first human-gated smart contract today using our SDK.</p>
+<div class="flex flex-wrap gap-4">
+<button class="bg-primary text-on-primary px-8 py-3 font-bold uppercase text-xs hover:bg-primary-dim transition-all">START_BUILDING</button>
+<button class="border border-tertiary text-tertiary px-8 py-3 font-bold uppercase text-xs hover:bg-tertiary/10 transition-all">READ_WHITEPAPER</button>
+</div>
+</div>
+<div class="bg-black/50 p-6 border border-outline-variant font-body text-[10px] leading-tight text-primary/70">
+<div class="mb-2 text-primary font-bold">TERMINAL_LOG_OUTPUT:</div>
+<div class="space-y-1">
+<div>&gt; INITIALIZING HUMAN_LAYER_PROTOCOL...</div>
+<div>&gt; SYNCING WITH SUI_MAINNET [BLOCK: 92,104,221]</div>
+<div>&gt; LIVENESS_CHECK: ACTIVE</div>
+<div>&gt; ENTROPY_GENERATOR: READY</div>
+<div class="animate-pulse">&gt; WAITING FOR INPUT..._</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="lg:pl-64 border-t border-outline-variant/20 py-12 px-6">
+<div class="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
+<div class="max-w-xs">
+<div class="font-headline font-black text-primary text-2xl mb-4 tracking-tighter">SUI_HUMAN</div>
+<p class="text-[10px] text-on-surface-variant uppercase font-bold leading-relaxed">Securing the biological layer of the decentralized web. Built for Sui, engineered for humans.</p>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-12">
+<div>
+<div class="text-[10px] font-bold text-primary mb-4 uppercase">NETWORK</div>
+<ul class="text-[10px] font-medium space-y-2 uppercase text-on-surface-variant">
+<li><a class="hover:text-primary" href="#">Verify</a></li>
+<li><a class="hover:text-primary" href="#">Node Status</a></li>
+<li><a class="hover:text-primary" href="#">Ecosystem</a></li>
+</ul>
+</div>
+<div>
+<div class="text-[10px] font-bold text-primary mb-4 uppercase">RESOURCES</div>
+<ul class="text-[10px] font-medium space-y-2 uppercase text-on-surface-variant">
+<li><a class="hover:text-primary" href="#">SDK Docs</a></li>
+<li><a class="hover:text-primary" href="#">Github</a></li>
+<li><a class="hover:text-primary" href="#">Whitepaper</a></li>
+</ul>
+</div>
+<div>
+<div class="text-[10px] font-bold text-primary mb-4 uppercase">CONNECT</div>
+<ul class="text-[10px] font-medium space-y-2 uppercase text-on-surface-variant">
+<li><a class="hover:text-primary" href="#">X / Twitter</a></li>
+<li><a class="hover:text-primary" href="#">Discord</a></li>
+<li><a class="hover:text-primary" href="#">Contact</a></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="max-w-[1600px] mx-auto mt-12 pt-8 border-t border-outline-variant/10 flex justify-between items-center">
+<div class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">© 2024 SUI_HUMAN PROTOCOL // NO BOTS ALLOWED.</div>
+<div class="flex gap-4">
+<span class="w-2 h-2 bg-primary animate-ping"></span>
+<span class="text-[9px] font-bold text-primary uppercase">SYSTEM_STABLE</span>
+</div>
+</div>
+</footer>
+</body></html>

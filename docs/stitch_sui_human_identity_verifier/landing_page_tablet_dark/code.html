@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SUI_HUMAN | SOVEREIGN_CONSOLE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700;900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed": "#403f3f",
+                        "primary-dim": "#00ec3b",
+                        "on-tertiary-container": "#003e50",
+                        "surface": "#0e0e0e",
+                        "on-tertiary-fixed-variant": "#00485b",
+                        "tertiary": "#6ad6ff",
+                        "surface-container-lowest": "#000000",
+                        "surface-dim": "#0e0e0e",
+                        "tertiary-fixed": "#00cbfe",
+                        "secondary": "#e5e2e1",
+                        "primary-fixed-dim": "#00ec3b",
+                        "primary": "#9cff93",
+                        "on-secondary-container": "#d2d0cf",
+                        "on-tertiary-fixed": "#002733",
+                        "error-dim": "#d53d18",
+                        "primary-container": "#00fc40",
+                        "on-surface-variant": "#adaaaa",
+                        "on-error": "#450900",
+                        "on-secondary": "#525151",
+                        "secondary-fixed-dim": "#d7d4d3",
+                        "on-primary-fixed-variant": "#006513",
+                        "surface-container-high": "#201f1f",
+                        "on-primary-container": "#005a10",
+                        "inverse-on-surface": "#565554",
+                        "tertiary-dim": "#00bcec",
+                        "on-background": "#ffffff",
+                        "on-primary": "#006413",
+                        "tertiary-fixed-dim": "#00bcec",
+                        "surface-variant": "#262626",
+                        "surface-container-highest": "#262626",
+                        "on-tertiary": "#00485c",
+                        "error": "#ff7351",
+                        "secondary-container": "#474646",
+                        "surface-tint": "#9cff93",
+                        "surface-bright": "#2c2c2c",
+                        "on-primary-fixed": "#00440a",
+                        "surface-container": "#1a1919",
+                        "tertiary-container": "#00cbfe",
+                        "outline": "#777575",
+                        "background": "#0e0e0e",
+                        "inverse-surface": "#fcf8f8",
+                        "on-error-container": "#ffd2c8",
+                        "on-surface": "#ffffff",
+                        "primary-fixed": "#00fc40",
+                        "error-container": "#b92902",
+                        "secondary-dim": "#d7d4d3",
+                        "inverse-primary": "#006f16",
+                        "surface-container-low": "#131313",
+                        "secondary-fixed": "#e5e2e1",
+                        "outline-variant": "#494847",
+                        "on-secondary-fixed-variant": "#5c5b5b"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0px",
+                        "lg": "0px",
+                        "xl": "0px",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "body": ["JetBrains Mono", "monospace"],
+                        "label": ["JetBrains Mono", "monospace"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #0e0e0e;
+            color: #ffffff;
+            cursor: crosshair;
+        }
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .glitch-text:hover {
+            text-shadow: 2px 0 #9cff93, -2px 0 #ff7351;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .steps-4 {
+            transition-timing-function: steps(4);
+        }
+        .scale-98-on-click-glitch-effect:active {
+            transform: scale(0.98);
+            filter: hue-rotate(90deg);
+        }
+        .cursor-terminal-blink {
+            cursor: text;
+        }
+        /* Custom scrollbar for terminal feel */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0e0e0e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #262626;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9cff93;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased overflow-x-hidden">
+<div class="crt-overlay"></div>
+<!-- TopNavBar -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-[#0e0e0e] dark:bg-[#0e0e0e] border-b border-[#262626] shadow-[0_0_15px_rgba(156,255,147,0.1)]">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold font-['Space_Grotesk'] tracking-tighter text-[#9cff93]">SUI_HUMAN</span>
+<div class="hidden md:flex gap-6 font-['JetBrains_Mono'] uppercase tracking-widest text-xs">
+<a class="text-[#6ad6ff] opacity-70 hover:text-[#9cff93] hover:bg-[#131313] transition-all steps-4 px-2 py-1" href="#">VERIFY</a>
+<a class="text-[#6ad6ff] opacity-70 hover:text-[#9cff93] hover:bg-[#131313] transition-all steps-4 px-2 py-1" href="#">NETWORK</a>
+<a class="text-[#6ad6ff] opacity-70 hover:text-[#9cff93] hover:bg-[#131313] transition-all steps-4 px-2 py-1" href="#">DOCS</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[#6ad6ff] opacity-70 hover:text-[#9cff93] transition-colors">terminal</button>
+<button class="material-symbols-outlined text-[#6ad6ff] opacity-70 hover:text-[#9cff93] transition-colors">settings</button>
+<button class="bg-[#9cff93] text-[#006413] px-4 py-2 font-['JetBrains_Mono'] text-xs font-bold uppercase scale-98-on-click-glitch-effect transition-all steps-4">
+                CONNECT_WALLET
+            </button>
+</div>
+</nav>
+<!-- SideNavBar (Visible on Tablet and Desktop) -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 flex flex-col justify-between py-8 bg-[#131313] dark:bg-[#131313] border-r border-[#262626] hidden lg:flex">
+<div class="space-y-1">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 bg-surface-container-highest border border-primary/20 flex items-center justify-center overflow-hidden">
+<img alt="Authorized User Avatar" class="w-full h-full object-cover" data-alt="Stylized glitchy digital avatar of a futuristic operator with neon green highlights and pixelated features" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmyw6fjShQEcUiFQR_yJsn5mMovVvQIw9wMcOxG-AzQtP7YTHhEEaJzLwNzNWpv6cKHzzXXzkUsbEL6vIi21B8Z_02aeW2hZKl65s-WuPGUbgWqKglgFJM2KoL7sUKF-Uzj0kaCQRb9KrqwdHvYkw8i8vl2_wJVRdTlm89UqHkaYxt-CJQvczE9EQWDwGvl97d23Fvs2l2aK0qSY79kcfDL3r8zvVd1ckUcCVHziEbnHBjTmqr_Oe4OmuO_Xuz9GXQRnbGFfIjzi0"/>
+</div>
+<div>
+<div class="font-['Space_Grotesk'] font-black text-[#9cff93] text-sm">OPERATOR_01</div>
+<div class="font-['JetBrains_Mono'] text-[10px] uppercase text-[#a8a8a8] opacity-60">STATUS: ENCRYPTED</div>
+</div>
+</div>
+</div>
+<nav class="flex flex-col font-['JetBrains_Mono'] text-[10px] uppercase">
+<a class="bg-[#201f1f] text-[#9cff93] border-l-4 border-[#9cff93] px-4 py-3 flex items-center gap-3 cursor-terminal-blink" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="data_object">data_object</span>
+                    TERMINAL
+                </a>
+<a class="text-[#a8a8a8] px-4 py-3 flex items-center gap-3 opacity-60 hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="face">face</span>
+                    LIVENESS
+                </a>
+<a class="text-[#a8a8a8] px-4 py-3 flex items-center gap-3 opacity-60 hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="fingerprint">fingerprint</span>
+                    SBT_VAULT
+                </a>
+<a class="text-[#a8a8a8] px-4 py-3 flex items-center gap-3 opacity-60 hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="hub">hub</span>
+                    NODES
+                </a>
+<a class="text-[#a8a8a8] px-4 py-3 flex items-center gap-3 opacity-60 hover:bg-[#201f1f] hover:text-[#9cff93] transition-colors duration-75" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="account_balance">account_balance</span>
+                    GOVERNANCE
+                </a>
+</nav>
+</div>
+<div class="px-4 space-y-4">
+<button class="w-full py-4 border border-[#9cff93] text-[#9cff93] font-bold text-xs uppercase hover:bg-[#9cff93] hover:text-[#006413] transition-all steps-4">
+                INITIATE_SCAN
+            </button>
+<div class="flex flex-col font-['JetBrains_Mono'] text-[10px] uppercase">
+<a class="text-[#a8a8a8] px-4 py-2 flex items-center gap-3 opacity-60 hover:text-error transition-colors" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="logout">logout</span>
+                    LOGOUT
+                </a>
+<a class="text-[#a8a8a8] px-4 py-2 flex items-center gap-3 opacity-60 hover:text-tertiary transition-colors" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="help_center">help_center</span>
+                    SUPPORT
+                </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="pt-24 lg:pl-72 px-6 pb-12 min-h-screen">
+<!-- Hero Section: Asymmetric Terminal Intro -->
+<section class="max-w-5xl mx-auto mb-16 relative">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-end">
+<div class="md:col-span-8 space-y-6">
+<div class="inline-block px-2 py-1 bg-surface-container-high border-l-2 border-primary">
+<span class="text-primary text-[10px] font-bold tracking-widest uppercase">SYSTEM_STATE: RECOGNITION_PENDING</span>
+</div>
+<h1 class="font-headline text-5xl md:text-7xl font-black leading-tight tracking-tighter uppercase glitch-text">
+                        Prove Your <br/>
+<span class="text-primary">Humanity</span> <br/>
+                        In Web3.
+                    </h1>
+<p class="text-on-surface-variant font-body text-sm md:text-base max-w-lg leading-relaxed border-l border-outline-variant pl-6">
+                        Sui Human is the definitive liveness oracle for the Sui ecosystem. Leveraging zero-knowledge proofs to verify your unique biological signature without compromising sovereign privacy.
+                    </p>
+<div class="flex flex-wrap gap-4 pt-4">
+<button class="bg-primary text-on-primary px-8 py-4 font-bold uppercase text-sm flex items-center gap-2 hover:bg-primary-dim transition-all steps-4">
+<span class="material-symbols-outlined text-xl" data-icon="shield_person">shield_person</span>
+                            VERIFY_NOW
+                        </button>
+<button class="border border-outline-variant text-on-surface px-8 py-4 font-bold uppercase text-sm hover:border-primary transition-all">
+                            EXPLORE_ECOSYSTEM
+                        </button>
+</div>
+</div>
+<div class="md:col-span-4 hidden md:block">
+<div class="aspect-square bg-surface-container-low p-4 relative overflow-hidden group">
+<div class="absolute inset-0 border border-primary/20 pointer-events-none z-10"></div>
+<img alt="Security Scan Graphic" class="w-full h-full object-cover grayscale brightness-50 contrast-125 group-hover:grayscale-0 transition-all duration-500" data-alt="Highly detailed macro shot of a cybernetic human eye with neon green hexagonal data overlays and digital circuitry mapping" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWWjt9R5ZgYyyQ1qvo4hx6OThZAtfv4lrYGoZYvdM0IU3DPFvO129EvLzOPuVIcNXt9ZIn2VobNBXH00kHV4U9LJ_SEnTeqplam4uKfKMoMYbn1sVUmd5mlNv-oQxR5UnHIA2moDOIBG_1NBXZKGL5qeG-uLJzhr3-6dadV-CRgs4-p0Pz8I_bt5HN7WS58CWJ4mD5Yrf0Zynf2zb8_Cksunz-0pX9Bdgc5B1kAWYRM01n9lXyFmatJjfk6xyhirPPJAvhdTurSNg"/>
+<div class="absolute bottom-2 left-2 text-[8px] text-primary/50 font-mono">ENCRYPT_KEY_0X72...A9</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Grid: The Console Modules -->
+<section class="max-w-5xl mx-auto space-y-8">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-1">
+<!-- Module 1: Network Health -->
+<div class="bg-surface-container-low p-8 col-span-1 md:col-span-2 flex flex-col justify-between min-h-[300px]">
+<div>
+<div class="flex justify-between items-start mb-12">
+<h3 class="text-tertiary font-headline font-bold text-2xl uppercase">Network_Activity</h3>
+<span class="text-primary text-[10px] animate-pulse">● LIVE_NODE</span>
+</div>
+<div class="space-y-4">
+<div class="h-[120px] w-full flex items-end gap-1 px-2 border-b border-outline-variant/30">
+<div class="bg-primary/20 w-full h-1/2"></div>
+<div class="bg-primary/40 w-full h-2/3"></div>
+<div class="bg-primary/60 w-full h-3/4"></div>
+<div class="bg-primary/80 w-full h-1/2"></div>
+<div class="bg-primary w-full h-full"></div>
+<div class="bg-primary/70 w-full h-2/3"></div>
+<div class="bg-primary/40 w-full h-3/4"></div>
+<div class="bg-primary/20 w-full h-1/3"></div>
+</div>
+<div class="flex justify-between text-[10px] text-on-surface-variant font-mono">
+<span>T-60M</span>
+<span>T-30M</span>
+<span>CURRENT_BLOCK</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-4 pt-6 mt-4 border-t border-outline-variant/10">
+<div>
+<div class="text-[8px] text-on-secondary-fixed-variant uppercase">Uptime</div>
+<div class="text-sm font-bold text-on-surface">99.98%</div>
+</div>
+<div>
+<div class="text-[8px] text-on-secondary-fixed-variant uppercase">Humans</div>
+<div class="text-sm font-bold text-on-surface">1,429,012</div>
+</div>
+<div>
+<div class="text-[8px] text-on-secondary-fixed-variant uppercase">Latency</div>
+<div class="text-sm font-bold text-on-surface">12MS</div>
+</div>
+</div>
+</div>
+<!-- Module 2: Liveness Status -->
+<div class="bg-surface-container-high p-8 flex flex-col justify-center items-center text-center space-y-6">
+<div class="relative w-32 h-32">
+<div class="absolute inset-0 border-2 border-dashed border-primary/30 animate-spin-slow"></div>
+<div class="absolute inset-2 border border-tertiary/20"></div>
+<div class="flex items-center justify-center h-full">
+<span class="material-symbols-outlined text-4xl text-primary" data-icon="biometric_setup">android_fingerprint</span>
+</div>
+</div>
+<div class="space-y-2">
+<h4 class="font-headline font-bold uppercase text-lg">Verify Identity</h4>
+<p class="text-[10px] text-on-surface-variant leading-tight">Start the biometric liveness check to unlock Sui network access.</p>
+</div>
+<button class="w-full py-3 bg-tertiary-container text-on-tertiary-container font-bold text-xs uppercase steps-4">
+                        RUN_INITIALIZER
+                    </button>
+</div>
+</div>
+<!-- Row 2: Secondary Content -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-1">
+<!-- Data Vault -->
+<div class="bg-surface-container-low p-6 md:col-span-1 space-y-4">
+<span class="material-symbols-outlined text-tertiary" data-icon="encrypted">encrypted</span>
+<h5 class="font-bold text-xs uppercase">SBT_Vault</h5>
+<p class="text-[10px] text-on-surface-variant">Encrypted soulbound tokens storage for validated entities.</p>
+</div>
+<!-- Developer Docs -->
+<div class="bg-surface-container-low p-6 md:col-span-1 space-y-4">
+<span class="material-symbols-outlined text-primary" data-icon="code_blocks">code_blocks</span>
+<h5 class="font-bold text-xs uppercase">API_Docs</h5>
+<p class="text-[10px] text-on-surface-variant">Integrate liveness verification into your dApp with 3 lines of code.</p>
+</div>
+<!-- Governance -->
+<div class="bg-surface-container-highest p-6 md:col-span-2 flex flex-row items-center justify-between gap-6">
+<div class="space-y-2">
+<h5 class="font-bold text-xs uppercase text-primary">Decentralized Governance</h5>
+<p class="text-[10px] text-on-surface-variant max-w-xs">Stake $HUMAN to participate in protocol parameter voting and verification tier approval.</p>
+</div>
+<div class="flex -space-x-2">
+<div class="w-8 h-8 bg-surface-variant border border-outline rounded-full flex items-center justify-center text-[10px] font-bold">JD</div>
+<div class="w-8 h-8 bg-surface-variant border border-outline rounded-full flex items-center justify-center text-[10px] font-bold">MK</div>
+<div class="w-8 h-8 bg-surface-variant border border-outline rounded-full flex items-center justify-center text-[10px] font-bold">AL</div>
+<div class="w-8 h-8 bg-primary text-on-primary rounded-full flex items-center justify-center text-[10px] font-bold">+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA / Footer Overlay -->
+<footer class="max-w-5xl mx-auto mt-24 pt-12 border-t border-outline-variant/20 grid grid-cols-1 md:grid-cols-2 gap-12">
+<div class="space-y-6">
+<div class="text-2xl font-headline font-black text-[#9cff93] tracking-tighter">SUI_HUMAN</div>
+<p class="text-[11px] text-on-surface-variant leading-relaxed max-w-sm uppercase font-mono tracking-wider">
+                    Established 2024. Building the human layer of the decentralized web. 
+                    No bots. No sybils. Pure humanity.
+                </p>
+<div class="flex gap-4">
+<a class="text-on-surface hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">public</span></a>
+<a class="text-on-surface hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">chat</span></a>
+<a class="text-on-surface hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">rss_feed</span></a>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-8">
+<div class="space-y-4">
+<h6 class="text-[10px] font-bold text-tertiary uppercase">Protocol</h6>
+<nav class="flex flex-col gap-2 text-[10px] text-on-surface-variant">
+<a class="hover:text-primary transition-colors" href="#">Architecture</a>
+<a class="hover:text-primary transition-colors" href="#">Liveness Oracles</a>
+<a class="hover:text-primary transition-colors" href="#">Privacy Stack</a>
+</nav>
+</div>
+<div class="space-y-4">
+<h6 class="text-[10px] font-bold text-tertiary uppercase">Support</h6>
+<nav class="flex flex-col gap-2 text-[10px] text-on-surface-variant">
+<a class="hover:text-primary transition-colors" href="#">Documentation</a>
+<a class="hover:text-primary transition-colors" href="#">Security Audit</a>
+<a class="hover:text-primary transition-colors" href="#">System Status</a>
+</nav>
+</div>
+</div>
+</footer>
+</main>
+<!-- FAB for quick terminal access (Tablet optimized) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-on-primary shadow-xl flex items-center justify-center hover:bg-primary-dim scale-98-on-click-glitch-effect lg:hidden z-50">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+</button>
+</body></html>

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import asyncio
 from datetime import UTC, datetime, timedelta
 import json
 import random
@@ -12,6 +13,7 @@ from fastapi import HTTPException, status
 from app.adapters.evidence_encryptor import EvidenceEncryptor
 from app.adapters.evidence_store import EvidenceStore
 from app.adapters.proof_minter import ProofMinter
+from app.adapters.command_runner import CommandExecutionError
 from app.core.config import Settings, resolve_data_path
 from app.core.logging import get_logger
 from app.pipeline.antispoof import AntiSpoofEvaluator
@@ -49,8 +51,11 @@ from app.sessions.models import (
     AdminEvaluateSessionRequest,
     AdminEvaluateSessionResponse,
     ChallengeType,
+    CompleteProofClaimRequest,
     ClientEventType,
     HealthResponse,
+    PreparedProofClaim,
+    ProofClaimOperation,
     ServerEventType,
     SessionCreateRequest,
     SessionCreateResponse,
@@ -82,6 +87,7 @@ _FRIENDLY_CHALLENGE_POOL = [
     ChallengeType.OPEN_MOUTH,
 ]
 _ANTI_SPOOF_PREVIEW_FRAME_LIMIT = 8
+_EVIDENCE_SCHEMA_VERSION = 1
 
 
 class VerificationSessionService:
@@ -332,6 +338,7 @@ class VerificationSessionService:
             created_at=now,
             expires_at=now + timedelta(seconds=self.settings.verifier_session_ttl_seconds),
             updated_at=now,
+            finalize_ready=False,
             last_message=f"Session created. Start with {self._step_label(challenge_sequence[0])}.",
         )
         await self.store.create_session(session)
@@ -372,6 +379,7 @@ class VerificationSessionService:
         if session.status == SessionStatus.CREATED:
             session.status = SessionStatus.READY
             session.step_status = StepStatus.ACTIVE
+            session.finalize_ready = False
             session.last_message = f"Start with {self._step_label(session.challenge_type)}."
             session.updated_at = datetime.now(tz=UTC)
             await self.store.save_session(session)
@@ -450,6 +458,7 @@ class VerificationSessionService:
         if session.status == SessionStatus.CREATED:
             session.status = SessionStatus.READY
             session.step_status = StepStatus.ACTIVE
+            session.finalize_ready = False
         session.last_message = "Heartbeat acknowledged"
         await self.store.save_session(session)
         return session
@@ -472,8 +481,15 @@ class VerificationSessionService:
             },
         )
 
+        if mode == VerificationMode.FULL and not session.finalize_ready:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Verification is still collecting security evidence. Keep facing the camera for a moment longer.",
+            )
+
         session.status = SessionStatus.PROCESSING
         session.last_message = "Running verification pipeline"
+        session.finalize_ready = False
         session.updated_at = datetime.now(tz=UTC)
         await self.store.save_session(session)
 
@@ -563,56 +579,15 @@ class VerificationSessionService:
         )
 
         proof_id: str | None = None
-        blob_id: str | None = None
+        transaction_digest: str | None = None
+        proof_operation: str | None = None
+        chain_network: str | None = None
+        walrus_blob_id: str | None = None
+        walrus_blob_object_id: str | None = None
+        seal_identity: str | None = None
+        evidence_schema_version: int | None = None
+        model_hash: str | None = None
         expires_at = None
-
-        if human and mode == VerificationMode.FULL:
-            evidence = self.evidence_assembler.assemble(
-                session_id=session.session_id,
-                wallet_address=session.wallet_address,
-                challenge_type=self._to_pipeline_challenge(session.challenge_type),
-                frames=usable_frames,
-                liveness=liveness,
-                antispoof=antispoof,
-                face_detections=usable_face_detections,
-            )
-            encrypted_blob = self.evidence_encryptor.encrypt_for_wallet(
-                session.wallet_address,
-                json.loads(
-                    json.dumps(
-                        asdict(evidence),
-                        default=lambda value: value.value if hasattr(value, "value") else value,
-                    )
-                ),
-            )
-            blob_id = self.evidence_store.put_encrypted_blob(
-                encrypted_blob,
-                metadata={
-                    "session_id": session.session_id,
-                    "wallet_address": session.wallet_address,
-                    "challenge_type": session.challenge_type.value,
-                },
-            )
-
-            mint_result = self.proof_minter.mint_proof(
-                self._pipeline_result(
-                    session_id=session.session_id,
-                    wallet_address=session.wallet_address,
-                    challenge_type=self._to_pipeline_challenge(session.challenge_type),
-                    status=SessionStatus.VERIFIED,
-                    human=True,
-                    confidence=confidence,
-                    spoof_score=antispoof.spoof_score,
-                    blob_id=blob_id,
-                    failure_reason=None,
-                )
-            )
-            if mint_result.success:
-                proof_id = mint_result.proof_id
-                expires_at = self._parse_datetime_string(mint_result.expires_at)
-            else:
-                human = False
-                failure_reason = mint_result.reason or "mint_failed"
 
         attack_analysis = build_attack_analysis(
             human=human,
@@ -628,7 +603,11 @@ class VerificationSessionService:
 
         if human:
             session.status = SessionStatus.VERIFIED
-            session.last_message = "Verification completed"
+            session.last_message = (
+                "Verification approved. Ready to mint proof."
+                if mode == VerificationMode.FULL
+                else "Verification completed"
+            )
         else:
             session.status = SessionStatus.FAILED
             session.last_message = failure_reason.replace("_", " ") if failure_reason else "Verification failed"
@@ -656,7 +635,15 @@ class VerificationSessionService:
             deepfake_enabled=deepfake.enabled,
             attack_analysis=attack_analysis,
             proof_id=proof_id,
-            blob_id=blob_id,
+            transaction_digest=transaction_digest,
+            proof_operation=proof_operation,
+            chain_network=chain_network,
+            walrus_blob_id=walrus_blob_id,
+            walrus_blob_object_id=walrus_blob_object_id,
+            seal_identity=seal_identity,
+            evidence_schema_version=evidence_schema_version,
+            model_hash=model_hash,
+            blob_id=walrus_blob_id,
             expires_at=expires_at,
             failure_reason=failure_reason,
         )
@@ -696,9 +683,483 @@ class VerificationSessionService:
                 "human_face_score": human_face.human_face_score,
                 "failure_reason": failure_reason,
                 "attack_family": attack_analysis["suspected_attack_family"],
+                "walrus_blob_id": walrus_blob_id,
+                "seal_identity": seal_identity,
             },
         )
         return result
+
+    async def prepare_wallet_claim(self, session_id: str) -> PreparedProofClaim:
+        self._ensure_verifier_ready(action="proof claim preparation")
+        session = await self._get_session_record(session_id)
+        self._ensure_session_ready_for_proof_action(session, action="prepare a proof claim")
+
+        if session.pending_proof_claim is not None:
+            if session.pending_proof_claim.claim_expires_at_ms > int(datetime.now(tz=UTC).timestamp() * 1000):
+                return session.pending_proof_claim
+            self._cleanup_stored_blob(session.pending_proof_claim.walrus_blob_id)
+            session.pending_proof_claim = None
+
+        session.status = SessionStatus.PROCESSING
+        session.last_message = "Preparing wallet claim"
+        session.updated_at = datetime.now(tz=UTC)
+        await self.store.save_session(session)
+
+        try:
+            pipeline_result, prepared_claim = self._build_prepared_wallet_claim(session)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            self.logger.exception(
+                "proof claim preparation failed after verification approval",
+                context={
+                    "session_id": session.session_id,
+                    "wallet_address": session.wallet_address,
+                    "error": str(exc),
+                },
+            )
+            session.status = SessionStatus.VERIFIED
+            session.last_message = "Could not prepare the wallet claim."
+            session.updated_at = datetime.now(tz=UTC)
+            await self.store.save_session(session)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Could not prepare the wallet claim for proof minting.",
+            ) from exc
+
+        session.result = self._merge_claim_metadata_into_result(session.result, prepared_claim)
+        session.pending_proof_claim = prepared_claim
+        session.status = SessionStatus.VERIFIED
+        session.last_message = "Approve the wallet transaction to mint the proof."
+        session.updated_at = datetime.now(tz=UTC)
+        await self.store.save_session(session)
+        return prepared_claim
+
+    async def complete_wallet_claim(
+        self,
+        session_id: str,
+        payload: CompleteProofClaimRequest,
+    ) -> VerificationResult:
+        session = await self._get_session_record(session_id)
+        pending_claim = session.pending_proof_claim
+        if pending_claim is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No prepared wallet claim exists for this session.",
+            )
+        if session.result is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Session result is unavailable for proof completion.",
+            )
+
+        proof_id = pending_claim.proof_object_id
+        if pending_claim.operation is ProofClaimOperation.MINT:
+            proof_id = payload.proof_id or await self._resolve_active_proof_id(session.wallet_address)
+        if not proof_id:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Wallet transaction succeeded, but the proof object could not be resolved yet.",
+            )
+
+        updated_result = session.result.model_copy(
+            update={
+                "proof_id": proof_id,
+                "transaction_digest": payload.transaction_digest,
+                "proof_operation": (
+                    "renewed" if pending_claim.operation is ProofClaimOperation.RENEW else "minted"
+                ),
+                "chain_network": pending_claim.chain_network,
+                "walrus_blob_id": pending_claim.walrus_blob_id,
+                "walrus_blob_object_id": pending_claim.walrus_blob_object_id,
+                "seal_identity": pending_claim.seal_identity,
+                "evidence_schema_version": pending_claim.evidence_schema_version,
+                "model_hash": pending_claim.model_hash,
+                "blob_id": pending_claim.walrus_blob_id,
+                "expires_at": datetime.fromtimestamp(pending_claim.expires_at_ms / 1000, tz=UTC),
+            }
+        )
+        session.result = updated_result
+        session.pending_proof_claim = None
+        session.status = SessionStatus.VERIFIED
+        session.last_message = "Proof minted successfully"
+        session.expires_at = updated_result.expires_at or session.expires_at
+        session.updated_at = datetime.now(tz=UTC)
+        await self.store.save_session(session)
+        return updated_result
+
+    async def cancel_wallet_claim(self, session_id: str, reason: str | None = None) -> VerificationResult:
+        session = await self._get_session_record(session_id)
+        pending_claim = session.pending_proof_claim
+        if pending_claim is None or session.result is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No prepared wallet claim exists for this session.",
+            )
+
+        self._cleanup_stored_blob(pending_claim.walrus_blob_id)
+        session.pending_proof_claim = None
+        session.result = session.result.model_copy(
+            update={
+                "walrus_blob_id": None,
+                "walrus_blob_object_id": None,
+                "seal_identity": None,
+                "evidence_schema_version": None,
+                "model_hash": None,
+                "blob_id": None,
+            }
+        )
+        session.status = SessionStatus.VERIFIED
+        session.last_message = reason or "Wallet mint cancelled."
+        session.updated_at = datetime.now(tz=UTC)
+        await self.store.save_session(session)
+        return session.result
+
+    async def mint_verified_session(self, session_id: str) -> VerificationResult:
+        self._ensure_verifier_ready(action="proof minting")
+        session = await self._get_session_record(session_id)
+
+        if session.result is None or session.result.status is not SessionStatus.VERIFIED or not session.result.human:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Finalize verification successfully before minting a proof.",
+            )
+
+        if session.result.proof_id:
+            return session.result
+
+        if session.result.evaluation_mode is not VerificationMode.FULL:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Proof minting is only available for full verification sessions.",
+            )
+
+        session.status = SessionStatus.PROCESSING
+        session.last_message = "Minting proof"
+        session.updated_at = datetime.now(tz=UTC)
+        await self.store.save_session(session)
+
+        frame_bundle = self.frame_evaluator.build_frame_bundle(session.frame_payloads)
+        frames = [frame for frame, _, _, _ in frame_bundle]
+        quality_evaluations = [quality for _, _, quality, _ in frame_bundle]
+        usable_frame_bundle = [
+            (frame, face_detection, quality, spotcheck)
+            for frame, face_detection, quality, spotcheck in frame_bundle
+            if face_detection.detected and quality.passed and spotcheck.passed
+        ]
+        usable_frames = [frame for frame, _, _, _ in usable_frame_bundle]
+        usable_face_detections = [face_detection for _, face_detection, _, _ in usable_frame_bundle]
+        liveness = self._final_liveness_evaluation(session, usable_frames if usable_frames else frames)
+        antispoof = self.antispoof_evaluator.evaluate(usable_frames, usable_face_detections)
+        deepfake = self.deepfake_evaluator.evaluate(
+            usable_frames,
+            usable_face_detections,
+            max_samples=self.deepfake_sample_frames,
+        )
+        human_face = self._evaluate_human_face_session(usable_frames, usable_face_detections)
+
+        evidence = self.evidence_assembler.assemble(
+            evidence_schema_version=_EVIDENCE_SCHEMA_VERSION,
+            session_id=session.session_id,
+            wallet_address=session.wallet_address,
+            challenge_type=self._to_pipeline_challenge(session.challenge_type),
+            challenge_sequence=[step.value for step in session.challenge_sequence],
+            session_started_at=session.created_at.isoformat(),
+            session_completed_at=datetime.now(tz=UTC).isoformat(),
+            frames=usable_frames,
+            liveness=liveness,
+            antispoof=antispoof,
+            deepfake=deepfake,
+            human_face=human_face,
+            quality_evaluations=quality_evaluations,
+            face_detections=usable_face_detections,
+            attack_analysis=session.result.attack_analysis,
+            evaluation_mode=session.result.evaluation_mode.value,
+            human=True,
+            confidence=session.result.confidence,
+        )
+
+        try:
+            encrypted_evidence = self.evidence_encryptor.encrypt_for_wallet(
+                session.wallet_address,
+                json.loads(
+                    json.dumps(
+                        asdict(evidence),
+                        default=lambda value: value.value if hasattr(value, "value") else value,
+                    )
+                ),
+            )
+            stored_blob = self.evidence_store.put_encrypted_blob(
+                encrypted_evidence.encrypted_bytes,
+                metadata={
+                    "session_id": session.session_id,
+                    "wallet_address": session.wallet_address,
+                    "challenge_type": session.challenge_type.value,
+                    "seal_identity": encrypted_evidence.seal_identity,
+                    "evidence_schema_version": evidence.evidence_schema_version,
+                },
+            )
+            walrus_blob_id = stored_blob.blob_id
+            walrus_blob_object_id = stored_blob.blob_object_id
+            seal_identity = encrypted_evidence.seal_identity
+            evidence_schema_version = evidence.evidence_schema_version
+            model_hash = evidence.model_hashes.get("verifier_bundle")
+            pipeline_result = self._pipeline_result(
+                session_id=session.session_id,
+                wallet_address=session.wallet_address,
+                challenge_type=self._to_pipeline_challenge(session.challenge_type),
+                status=SessionStatus.VERIFIED,
+                human=True,
+                confidence=session.result.confidence,
+                spoof_score=session.result.spoof_score,
+                walrus_blob_id=walrus_blob_id,
+                walrus_blob_object_id=walrus_blob_object_id,
+                seal_identity=seal_identity,
+                evidence_schema_version=evidence_schema_version,
+                model_hash=model_hash,
+                failure_reason=None,
+            )
+            active_proof = self.proof_minter.find_active_proof(session.wallet_address)
+            planned_operation = "renewed" if active_proof is not None else "minted"
+            if active_proof is not None:
+                proof_result = self.proof_minter.renew_proof(
+                    pipeline_result,
+                    active_proof.proof_id,
+                )
+            else:
+                try:
+                    proof_result = self.proof_minter.mint_proof(pipeline_result)
+                except CommandExecutionError as exc:
+                    if not self._looks_like_duplicate_active_proof_error(exc):
+                        raise
+                    active_proof = self.proof_minter.find_active_proof(session.wallet_address)
+                    if active_proof is None:
+                        raise
+                    planned_operation = "renewed"
+                    proof_result = self.proof_minter.renew_proof(
+                        pipeline_result,
+                        active_proof.proof_id,
+                    )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            if "walrus_blob_id" in locals():
+                self._cleanup_stored_blob(walrus_blob_id)
+            self.logger.exception(
+                "proof mint failed after verification approval",
+                context={
+                    "session_id": session.session_id,
+                    "wallet_address": session.wallet_address,
+                    "error": str(exc),
+                },
+            )
+            session.status = SessionStatus.VERIFIED
+            session.last_message = "Proof mint failed after verification approval."
+            session.updated_at = datetime.now(tz=UTC)
+            await self.store.save_session(session)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Proof minting failed after verification approval.",
+            ) from exc
+
+        if not proof_result.success:
+            self._cleanup_stored_blob(walrus_blob_id)
+            session.status = SessionStatus.VERIFIED
+            session.last_message = "Proof mint failed after verification approval."
+            session.updated_at = datetime.now(tz=UTC)
+            await self.store.save_session(session)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=proof_result.reason or "Proof minting failed after verification approval.",
+            )
+
+        updated_result = session.result.model_copy(
+            update={
+                "proof_id": proof_result.proof_id,
+                "transaction_digest": proof_result.transaction_digest,
+                "proof_operation": proof_result.proof_operation or planned_operation,
+                "chain_network": (
+                    proof_result.chain_network
+                    or str(proof_result.metadata.get("network") or "")
+                    or None
+                ),
+                "walrus_blob_id": proof_result.walrus_blob_id or walrus_blob_id,
+                "walrus_blob_object_id": proof_result.walrus_blob_object_id or walrus_blob_object_id,
+                "seal_identity": proof_result.seal_identity or seal_identity,
+                "evidence_schema_version": proof_result.evidence_schema_version or evidence_schema_version,
+                "model_hash": proof_result.model_hash or model_hash,
+                "blob_id": proof_result.walrus_blob_id or walrus_blob_id,
+                "expires_at": self._parse_datetime_string(proof_result.expires_at),
+            }
+        )
+        session.result = updated_result
+        session.status = SessionStatus.VERIFIED
+        session.last_message = "Proof minted successfully"
+        session.expires_at = updated_result.expires_at or session.expires_at
+        session.updated_at = datetime.now(tz=UTC)
+        await self.store.save_session(session)
+        return updated_result
+
+    def _ensure_session_ready_for_proof_action(self, session: SessionRecord, *, action: str) -> None:
+        if session.result is None or session.result.status is not SessionStatus.VERIFIED or not session.result.human:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Finalize verification successfully before attempting to {action}.",
+            )
+
+        if session.result.proof_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This session already has a minted proof.",
+            )
+
+        if session.result.evaluation_mode is not VerificationMode.FULL:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Proof minting is only available for full verification sessions.",
+            )
+
+    def _build_prepared_wallet_claim(
+        self,
+        session: SessionRecord,
+    ) -> tuple[VerificationResult, PreparedProofClaim]:
+        proof_confidence = max(
+            session.result.confidence if session.result else 0.0,
+            self.settings.verifier_proof_minimum_confidence,
+        )
+        frame_bundle = self.frame_evaluator.build_frame_bundle(session.frame_payloads)
+        frames = [frame for frame, _, _, _ in frame_bundle]
+        quality_evaluations = [quality for _, _, quality, _ in frame_bundle]
+        usable_frame_bundle = [
+            (frame, face_detection, quality, spotcheck)
+            for frame, face_detection, quality, spotcheck in frame_bundle
+            if face_detection.detected and quality.passed and spotcheck.passed
+        ]
+        usable_frames = [frame for frame, _, _, _ in usable_frame_bundle]
+        usable_face_detections = [face_detection for _, face_detection, _, _ in usable_frame_bundle]
+        liveness = self._final_liveness_evaluation(session, usable_frames if usable_frames else frames)
+        antispoof = self.antispoof_evaluator.evaluate(usable_frames, usable_face_detections)
+        deepfake = self.deepfake_evaluator.evaluate(
+            usable_frames,
+            usable_face_detections,
+            max_samples=self.deepfake_sample_frames,
+        )
+        human_face = self._evaluate_human_face_session(usable_frames, usable_face_detections)
+
+        evidence = self.evidence_assembler.assemble(
+            evidence_schema_version=_EVIDENCE_SCHEMA_VERSION,
+            session_id=session.session_id,
+            wallet_address=session.wallet_address,
+            challenge_type=self._to_pipeline_challenge(session.challenge_type),
+            challenge_sequence=[step.value for step in session.challenge_sequence],
+            session_started_at=session.created_at.isoformat(),
+            session_completed_at=datetime.now(tz=UTC).isoformat(),
+            frames=usable_frames,
+            liveness=liveness,
+            antispoof=antispoof,
+            deepfake=deepfake,
+            human_face=human_face,
+            quality_evaluations=quality_evaluations,
+            face_detections=usable_face_detections,
+            attack_analysis=session.result.attack_analysis if session.result else None,
+            evaluation_mode=session.result.evaluation_mode.value if session.result else VerificationMode.FULL.value,
+            human=True,
+            confidence=proof_confidence,
+        )
+
+        encrypted_evidence = self.evidence_encryptor.encrypt_for_wallet(
+            session.wallet_address,
+            json.loads(
+                json.dumps(
+                    asdict(evidence),
+                    default=lambda value: value.value if hasattr(value, "value") else value,
+                )
+            ),
+        )
+        stored_blob = self.evidence_store.put_encrypted_blob(
+            encrypted_evidence.encrypted_bytes,
+            metadata={
+                "session_id": session.session_id,
+                "wallet_address": session.wallet_address,
+                "challenge_type": session.challenge_type.value,
+                "seal_identity": encrypted_evidence.seal_identity,
+                "evidence_schema_version": evidence.evidence_schema_version,
+            },
+        )
+        walrus_blob_id = stored_blob.blob_id
+        walrus_blob_object_id = stored_blob.blob_object_id
+        seal_identity = encrypted_evidence.seal_identity
+        evidence_schema_version = evidence.evidence_schema_version
+        model_hash = evidence.model_hashes.get("verifier_bundle")
+
+        pipeline_result = self._pipeline_result(
+            session_id=session.session_id,
+            wallet_address=session.wallet_address,
+            challenge_type=self._to_pipeline_challenge(session.challenge_type),
+            status=SessionStatus.VERIFIED,
+            human=True,
+            confidence=proof_confidence,
+            spoof_score=session.result.spoof_score if session.result else 0.0,
+            walrus_blob_id=walrus_blob_id,
+            walrus_blob_object_id=walrus_blob_object_id,
+            seal_identity=seal_identity,
+            evidence_schema_version=evidence_schema_version,
+            model_hash=model_hash,
+            failure_reason=None,
+        )
+
+        active_proof = self.proof_minter.find_active_proof(session.wallet_address)
+        claim_issued_at = datetime.now(tz=UTC)
+        proof_expires_at = claim_issued_at + timedelta(days=self.settings.verifier_sui_proof_ttl_days)
+        claim_expires_at = claim_issued_at + timedelta(seconds=self.settings.verifier_sui_claim_ttl_seconds)
+        prepared_claim = self.proof_minter.prepare_wallet_claim(
+            pipeline_result,
+            operation=ProofClaimOperation.RENEW if active_proof is not None else ProofClaimOperation.MINT,
+            claim_id=uuid4().hex,
+            claim_expires_at_ms=int(claim_expires_at.timestamp() * 1000),
+            issued_at_ms=int(claim_issued_at.timestamp() * 1000),
+            expires_at_ms=int(proof_expires_at.timestamp() * 1000),
+            proof_object_id=active_proof.proof_id if active_proof is not None else None,
+        )
+        return pipeline_result, prepared_claim
+
+    async def _resolve_active_proof_id(self, wallet_address: str) -> str | None:
+        for _ in range(5):
+            active_proof = self.proof_minter.find_active_proof(wallet_address)
+            if active_proof is not None:
+                return active_proof.proof_id
+            await asyncio.sleep(0.5)
+        return None
+
+    def _merge_claim_metadata_into_result(
+        self,
+        result: VerificationResult | None,
+        claim: PreparedProofClaim,
+    ) -> VerificationResult:
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Session result is unavailable for proof preparation.",
+            )
+        return result.model_copy(
+            update={
+                "chain_network": claim.chain_network,
+                "walrus_blob_id": claim.walrus_blob_id,
+                "walrus_blob_object_id": claim.walrus_blob_object_id,
+                "seal_identity": claim.seal_identity,
+                "evidence_schema_version": claim.evidence_schema_version,
+                "model_hash": claim.model_hash,
+                "blob_id": claim.walrus_blob_id,
+                "expires_at": datetime.fromtimestamp(claim.expires_at_ms / 1000, tz=UTC),
+            }
+        )
+
+    def _looks_like_duplicate_active_proof_error(self, error: CommandExecutionError) -> bool:
+        message = str(error)
+        return (
+            "verify_and_mint" in message
+            and ("code 1" in message or "E_ACTIVE_PROOF_EXISTS" in message)
+        )
 
     async def get_health(self) -> HealthResponse:
         redis_ok = await self.store.ping()
@@ -714,20 +1175,10 @@ class VerificationSessionService:
             status="ready" if redis_ok else "degraded",
             redis="ready" if redis_ok else "degraded",
             models="ready" if models_ready else "degraded",
-            chain_adapter=(
-                "ready"
-                if self.settings.verifier_chain_adapter_enabled
-                else "not_configured"
-            ),
-            storage_adapter=(
-                "ready"
-                if self.settings.verifier_storage_adapter_enabled
-                else "not_configured"
-            ),
-            encryption_adapter=(
-                "ready"
-                if self.settings.verifier_encryption_adapter_enabled
-                else "not_configured"
+            chain_adapter=self._adapter_health_status(self.settings.effective_chain_adapter_mode),
+            storage_adapter=self._adapter_health_status(self.settings.effective_storage_adapter_mode),
+            encryption_adapter=self._adapter_health_status(
+                self.settings.effective_encryption_adapter_mode
             ),
             model_details={
                 "face_detector": {
@@ -1006,8 +1457,11 @@ class VerificationSessionService:
             sum(float(item.human_face_score or 0.0) for item in scored) / len(scored),
             4,
         )
-        passed = all(item.passed for item in scored)
-        top_label = scored[-1].top_label
+        passed = average_score >= self.settings.verifier_human_face_threshold
+        top_label = max(
+            scored,
+            key=lambda item: float(item.human_face_score or 0.0),
+        ).top_label
         return HumanFaceEvaluation(
             enabled=scored[-1].enabled,
             enforced=scored[-1].enforced,
@@ -1165,6 +1619,7 @@ class VerificationSessionService:
         has_minimum_step_frames = len(active_frames) >= self.minimum_step_frames
 
         session.status = SessionStatus.STREAMING
+        session.finalize_ready = False
         session.updated_at = datetime.now(tz=UTC)
 
         if not session.all_challenges_completed and liveness.passed and has_minimum_step_frames:
@@ -1173,11 +1628,21 @@ class VerificationSessionService:
                 session.progress = 1.0
                 session.step_progress = 1.0
                 session.step_status = StepStatus.COMPLETED
-                session.last_message = "Challenge sequence complete. Finalize to verify."
+                session.finalize_ready = self._can_finalize_stream_session(
+                    face_detection=face_detection,
+                    face_quality=face_quality,
+                    human_face=human_face,
+                )
+                session.last_message = (
+                    "Challenge sequence complete. Mint is ready."
+                    if session.finalize_ready
+                    else "Challenge sequence complete. Hold steady while security checks finish."
+                )
             else:
                 session.progress = round(len(session.completed_challenges) / session.total_challenges, 4)
                 session.step_progress = 0.0
                 session.step_status = StepStatus.ACTIVE
+                session.finalize_ready = False
                 session.last_message = f"Step complete. Next: {self._step_label(session.challenge_type)}."
 
             session.debug = build_session_debug_payload(
@@ -1203,6 +1668,33 @@ class VerificationSessionService:
             )
             return
 
+        if session.all_challenges_completed:
+            session.progress = 1.0
+            session.step_progress = 1.0
+            session.step_status = StepStatus.COMPLETED
+            session.finalize_ready = self._can_finalize_stream_session(
+                face_detection=face_detection,
+                face_quality=face_quality,
+                human_face=human_face,
+            )
+            session.last_message = (
+                "Challenge sequence complete. Mint is ready."
+                if session.finalize_ready
+                else "Challenge sequence complete. Hold steady while security checks finish."
+            )
+            session.debug = build_session_debug_payload(
+                latest_frame=latest_frame,
+                face_detection=face_detection,
+                face_quality=face_quality,
+                landmark_spotcheck=landmark_spotcheck,
+                human_face=human_face,
+                antispoof=antispoof_preview,
+                current_step=current_step,
+                step_progress=session.step_progress,
+                message=session.last_message,
+            )
+            return
+
         hold_progress = min(len(active_frames) / self.minimum_step_frames, 1.0)
         session.step_progress = (
             liveness.progress
@@ -1212,6 +1704,7 @@ class VerificationSessionService:
         session.step_status = StepStatus.COMPLETED if session.all_challenges_completed else StepStatus.ACTIVE
         completed_units = len(session.completed_challenges) + session.step_progress
         session.progress = round(min(0.95, completed_units / max(session.total_challenges, 1)), 4)
+        session.finalize_ready = False
 
         preferred_message = face_quality.message if not face_quality.passed else liveness.message
         if face_quality.passed and not landmark_spotcheck.passed:
@@ -1267,6 +1760,17 @@ class VerificationSessionService:
         detections = [detection for _, detection in preview_bundle]
         return self.antispoof_evaluator.evaluate(frames, detections)
 
+    def _can_finalize_stream_session(
+        self,
+        *,
+        face_detection: FaceDetectionResult,
+        face_quality: FaceQualityEvaluation,
+        human_face: HumanFaceEvaluation,
+    ) -> bool:
+        if not face_detection.detected or not face_quality.passed:
+            return False
+        return True
+
     def _final_liveness_evaluation(
         self,
         session: SessionRecord,
@@ -1311,7 +1815,11 @@ class VerificationSessionService:
         human: bool,
         confidence: float,
         spoof_score: float,
-        blob_id: str | None,
+        walrus_blob_id: str | None,
+        walrus_blob_object_id: str | None,
+        seal_identity: str | None,
+        evidence_schema_version: int | None,
+        model_hash: str | None,
         failure_reason: str | None,
     ):
         from app.pipeline.types import VerificationResult as PipelineVerificationResult
@@ -1324,14 +1832,44 @@ class VerificationSessionService:
             human=human,
             confidence=confidence,
             spoof_score=spoof_score,
-            blob_id=blob_id,
+            walrus_blob_id=walrus_blob_id,
+            walrus_blob_object_id=walrus_blob_object_id,
+            seal_identity=seal_identity,
+            evidence_schema_version=evidence_schema_version,
+            model_hash=model_hash,
+            blob_id=walrus_blob_id,
             metadata={"failure_reason": failure_reason} if failure_reason else {},
+        )
+
+    def _cleanup_stored_blob(self, blob_id: str | None) -> None:
+        if blob_id is None:
+            return
+        try:
+            deleted = self.evidence_store.delete_blob(blob_id)
+        except Exception as exc:
+            self.logger.warning(
+                "stored evidence blob cleanup raised after proof finalization failure",
+                context={"walrus_blob_id": blob_id, "error": str(exc)},
+            )
+            return
+        if deleted:
+            return
+        self.logger.warning(
+            "stored evidence blob could not be deleted after proof finalization failure",
+            context={"walrus_blob_id": blob_id},
         )
 
     def _parse_datetime_string(self, value: str | None) -> datetime | None:
         if value is None:
             return None
         return datetime.fromisoformat(value)
+
+    def _adapter_health_status(self, mode: str) -> str:
+        if mode in {"mock", "memory"}:
+            return "mock"
+        if mode:
+            return "ready"
+        return "not_configured"
 
     def _ensure_verifier_ready(self, *, action: str) -> None:
         ready, not_ready_models = self._verification_models_ready()

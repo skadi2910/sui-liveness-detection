@@ -1,8 +1,14 @@
 # Progress Log
 
+Latest combined frontend + smart-contract integration status now lives in [17-frontend-smart-contract-integration-progress.md](/Users/skadi2910/projects/sui-liveness-detection/docs/17-frontend-smart-contract-integration-progress.md). This file remains a historical verifier/harness checkpoint.
+
 ## Current Status
 
 The repository now has a documented MVP structure plus a runnable local verifier/testing harness with a sequence-based liveness flow, live overlay diagnostics, modularized frontend/backend code, and QA-oriented calibration tooling.
+
+For the latest frontend route/status checkpoint and wallet-login implementation status, see:
+
+- `docs/16-frontend-progress-and-wallet-plan.md`
 
 Validated on April 18, 2026:
 

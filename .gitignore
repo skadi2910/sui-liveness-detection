@@ -43,3 +43,6 @@ services/verifier/sample-data/attack-matrix/local-dev.ndjson
 # Build and infra
 tmp/
 .turbo/
+
+# Move contract build output
+contracts/move/build/

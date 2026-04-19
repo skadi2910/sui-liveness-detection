@@ -7,10 +7,14 @@ from app.sessions.models import (
     AdminEvaluateSessionResponse,
     CalibrationAppendRequest,
     CalibrationAppendResponse,
+    CancelProofClaimRequest,
+    CompleteProofClaimRequest,
     HealthResponse,
+    PreparedProofClaim,
     SessionCreateRequest,
     SessionCreateResponse,
     SessionResponse,
+    VerificationResult,
 )
 from app.sessions.service import VerificationSessionService
 
@@ -44,6 +48,40 @@ async def get_session(
     service: VerificationSessionService = Depends(get_service),
 ) -> SessionResponse:
     return await service.get_session(session_id)
+
+
+@router.post("/sessions/{session_id}/mint", response_model=VerificationResult)
+async def mint_session(
+    session_id: str,
+    service: VerificationSessionService = Depends(get_service),
+) -> VerificationResult:
+    return await service.mint_verified_session(session_id)
+
+
+@router.post("/sessions/{session_id}/claim", response_model=PreparedProofClaim)
+async def prepare_wallet_claim(
+    session_id: str,
+    service: VerificationSessionService = Depends(get_service),
+) -> PreparedProofClaim:
+    return await service.prepare_wallet_claim(session_id)
+
+
+@router.post("/sessions/{session_id}/claim/complete", response_model=VerificationResult)
+async def complete_wallet_claim(
+    session_id: str,
+    payload: CompleteProofClaimRequest,
+    service: VerificationSessionService = Depends(get_service),
+) -> VerificationResult:
+    return await service.complete_wallet_claim(session_id, payload)
+
+
+@router.post("/sessions/{session_id}/claim/cancel", response_model=VerificationResult)
+async def cancel_wallet_claim(
+    session_id: str,
+    payload: CancelProofClaimRequest,
+    service: VerificationSessionService = Depends(get_service),
+) -> VerificationResult:
+    return await service.cancel_wallet_claim(session_id, payload.reason)
 
 
 @router.post("/calibration/append", response_model=CalibrationAppendResponse)
